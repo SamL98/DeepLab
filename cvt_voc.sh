@@ -1,0 +1,1 @@
+python ../models/research/deeplab/datasets/remove_gt_colormap.py --original_gt_folder=/cygdrive/d/datasets/original/vocdevkit/voc2012/segmentationclass --output_dir=/cygdrive/d/datasets/original/vocdevkit/voc2012/SegmentationClassRaw

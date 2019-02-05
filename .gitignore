@@ -1,3 +1,9 @@
 /cache_data/
 /model_trained/
 /datasets/
+/acc_hists/
+/__pycache__/
+/VOCdevkit/
+*.mat
+*.png
+*.zip

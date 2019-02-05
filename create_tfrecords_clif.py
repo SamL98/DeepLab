@@ -21,10 +21,35 @@ def img_to_tfrecord(image_data, mask_data, width, height, image_format, filename
 		'image/format': bytes_feature(image_format),
 		'image/height': int64_feature(height),
 		'image/width': int64_feature(width),
-		'image/channels': int64_feature(3),
+		'image/channels': int64_feature(1),
 		'images/segmentation/class/encoded': bytes_feature(mask_data),
 		'images/segmentation/class/format': bytes_feature(image_format)
 	}))
+
+	
+def create_tfexample_for_fname(fname):
+	crop_name = fname[:fname.index('.')]
+	im_path = None
+	root_im_path = 'E:/CLIF2007/LabelUs/Sam'
+	for label_folder in ['Ash', 'Bryan', 'Davis', 'Jamie', 'Sam', 'Tong']:
+		if crop_name+'.png' in os.listdir(join(root_im_path, label_folder)):
+			im_path = join(root_im_path, label_folder, crop_name+'.png')
+			
+	img = imread(im_path)
+	image_tensor = tf.placeholder(dtype=tf.uint8, shape=img.shape)
+	encoded_png = tf.image.encode_png(image_tensor)
+	
+	mask_tensor = tf.placeholder(dtype=tf.uint8, shape=img.shape)
+	mask_file = h5py.File(join('E:/LERNER/deeplab/datasets/clif/gt', fname))
+	mask = mask_file['ground_truth'][:]
+	
+	encoded_mask = tf.image.encode_png(mask_tensor)
+	png_string = sess.run(encoded_png, feed_dict={image_tensor: img})
+	mask_string = sess.run(encoded_mask, feed_dict={mask_tensor: np.expand_dims(mask.T, axis=2)})
+
+	mask_file.close()
+	
+	return image_seg_to_tfexample(png_string, img_files[j], h, w, mask_string)
 
 
 import math
@@ -53,32 +78,7 @@ def _add_to_tfrecord(ext, num_images):
 						sys.stdout.write('\r>> Converting image %d/%d' % (j + 1, num_images))
 						sys.stdout.flush()
 
-						img = imread(join(img_dir, '%s_%06d_img.png' % (ext.lower(), j+1)))
-						shape = img.shape
-
-						image_tensor = tf.placeholder(dtype=tf.uint8, shape=shape)
-						encoded_png = tf.image.encode_png(image_tensor)
-
-						mask_tensor = tf.placeholder(dtype=tf.uint8, shape=(shape[0], shape[1], 1))
-
-						mask_file = h5py.File(join(mask_dir, '%s_%06d_pixeltruth.mat' % (ext.lower(), j+1)))
-						mask = mask_file['truth_img'][:,:]
-
-						# comment out to keep borders
-						mask_border_mask_file = h5py.File(join(mask_dir, '%s_%06d_nonborder.mat' % (ext.lower(), j+1)))
-						mask_border_mask = mask_border_mask_file['nonborder_mask_img'][:,:] 
-						mask = np.multiply(mask, mask_border_mask)
-						# end block
-
-						encoded_mask = tf.image.encode_png(mask_tensor)
-						png_string = sess.run(encoded_png, feed_dict={image_tensor: img})
-						mask_string = sess.run(encoded_mask, feed_dict={mask_tensor: np.expand_dims(mask.T, axis=2)})
-
-						mask_file.close()
-
-						#example = img_to_tfrecord(
-						#	png_string, mask_string, w, h, 'png'.encode(), img_files[j])
-						example = image_seg_to_tfexample(png_string, img_files[j], h, w, mask_string)
+						example = create_tfexample_for_fname(fname)
 						tfrecord_writer.write(example.SerializeToString())
 
 

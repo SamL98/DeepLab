@@ -1,0 +1,1 @@
+python "C:/Users/lerner.67a/models/research/deeplab/export_model.py" --model_variant="xception_65" --output_stride=16 --atrous_rates=6 --atrous_rates=12 --atrous_rates=18 --atrous_rates=32 --checkpoint_path="E:/lerner/deeplab/cache_data/model-voc-1543249530/train/model.ckpt-1" --export_path="E:/lerner/deeplab/cache_data/model-voc-1543249530/frozen_inference_graph.pb"

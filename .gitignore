@@ -13,3 +13,5 @@
 /mats/
 /.ipynb_checkpoints/
 *.swp
+*.pkl
+*.ipynb

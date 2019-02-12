@@ -1,4 +1,5 @@
-from hdf5storage import loadmat, savemat
+from hdf5storage import loadmat
+import pickle
 from collections import namedtuple
 import numpy as np
 
@@ -7,7 +8,7 @@ Cluster = namedtuple('Cluster', 'name cluster_idx terminals corr_hist count_hist
 ds_info = loadmat('D:/datasets/processed/voc2012/dataset_info.mat')
 classes = ds_info['class_labels'][:-1]
 
-cluster_idx = 0
+cluster_idx = 1
 res = .5
 nb = int(1./res)
 
@@ -30,7 +31,7 @@ def create_cluster(labels, name):
 def create_single_cluster(label):
 	return create_cluster([label], label)
 
-slices = [[create_single_cluster(class_labels[i]) for i in range(1, len(classes))]]
+slices = [[create_single_cluster(classes[i]) for i in range(1, len(classes))]]
 
 slc = []
 slc.append(create_cluster(['cow', 'sheep', 'horse'], 'ungulate'))
@@ -64,4 +65,5 @@ slc.append(create_cluster(['cow', 'sheep', 'horse', 'dog', 'cat', 'bird', 'perso
 slc.append(create_cluster(['car', 'bus', 'motorbike', 'bicycle', 'train', 'boat', 'aeroplane', 'bottle', 'tvmonitor', 'potted plant', 'chair', 'sofa', 'diningtable'], 'object'))
 slices.append(slc[:])
 
-savemat('slices.mat', {'slices': slices})
+with open('slices.pkl', 'wb') as f:
+	pickle.dump(slices, f)

@@ -6,7 +6,7 @@ import sys
 from util import read_slices
 
 tree_fname = sys.argv[1]
-slices = loadmat(tree_fname)['slices']
+slices = read_slices(tree_fname)
 
 imset = 'val'
 if len(sys.argv) > 2:
@@ -20,24 +20,8 @@ nc = 20
 logit_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat')
 gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')	
 
-res = 0.05
-nb = int(1./res)
-
-corr_accum = [np.zeros((len(slc), nb), dtype=np.uint64) for slc in slices]
-total_accum = [np.zeros((len(slc), nb), dtype=np.uint64) for slc in slices]
-
-def confidence_for_cluster(sm_vec, cluster_idxes):
-	return sm_vec[cluster_idxes].sum()
-
-def remap_gt(true_label, slc):
-	for i, cluster in enumerate(slc):
-		if true_label in cluster: return i
-		
-def remap_sm(sm_vec, slc):
-	conf = []
-	for cluster in slc:
-		conf.append(confidence_for_cluster(sm_vec, cluster))
-	return np.array(conf)
+nb = len(slices[0][0].acc_hist)
+res = 1./nb
 
 for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)

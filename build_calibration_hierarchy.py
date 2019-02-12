@@ -3,6 +3,8 @@ from hdf5storage import loadmat, savemat
 from os.path import join
 import sys
 
+from util import read_slices
+
 tree_fname = sys.argv[1]
 slices = loadmat(tree_fname)['slices']
 

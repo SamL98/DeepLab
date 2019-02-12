@@ -48,7 +48,7 @@ for idx in range(1, m+1):
 				label = remap_gt(true_label, slc)
 				if label != j: continue
 				
-				conf = slc_sm[j]
+				conf = sm_vec[j]
 				binno = np.floor(conf/res).astype(np.uint8)
 				binno = min(binno, nb-1)
 
@@ -62,4 +62,4 @@ for slc in slices:
 	for cluster in slc:
 		cluster.acc_hist = cluster.corr_hist.astype(np.float32) / cluster.count_hist.astype(np.float32)
 
-save_slices('slices.pkl', slices)
+save_slices(tree_fname, slices)

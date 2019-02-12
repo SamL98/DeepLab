@@ -1,5 +1,7 @@
 import pickle
 from collections import namedtuple
+import numpy as np
+
 Cluster = namedtuple('Cluster', 'name cluster_idx terminals corr_hist count_hist acc_hist')
 
 def read_slices(fname):

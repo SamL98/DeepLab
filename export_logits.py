@@ -26,7 +26,7 @@ DS_PATH = 'D:/datasets/processed/voc2012'
 RGB_PATH = join(DS_PATH, 'rgb', imset)
 OUTPUT_PATH = join(DS_PATH, 'Deeplab_Prediction', imset)
 
-INPT_FMT = imset.lower()+'_%06d_img.png' 
+INPT_FMT = imset.lower()+'_%06d_rgb.jpg' 
 PRED_MAT_NAME = 'pred_img'
 LGT_FMT = imset.lower()+'_%06d_logits.mat'
 LGT_MAT_NAME = 'logits_img'
@@ -45,11 +45,11 @@ with tf.Graph().as_default() as graph:
 	tf.import_graph_def(graph_def, name='') 
 	
 ds_info = loadmat(join(DS_PATH, 'dataset_info.mat'))
-if 'num_'+imset.lower() in ds_info:
-	num_img = ds_info['num_'+imset.lower()]
+
+if imset.lower() == 'val':
+	num_img = 350
 else:
-	from os import listdir
-	num_img = len(listdir(RGB_PATH))
+	num_img = 1099
 	
 orig_labelmap = ds_info['class_labels']
 orig_labelmap[orig_labelmap.index('potted plant')] = 'pottedplant'

@@ -9,3 +9,7 @@
 *.zip
 /seg_res/
 /test/
+/images/
+/mats/
+/.ipynb_checkpoints/
+*.swp

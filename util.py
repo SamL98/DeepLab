@@ -3,13 +3,13 @@ from collections import namedtuple
 Cluster = namedtuple('Cluster', 'name cluster_idx terminals corr_hist count_hist acc_hist')
 
 def read_slices(fname):
-    with open(fname, 'rb') as f:
-        slices = pickle.load(f)
-    return slices
+	with open(fname, 'rb') as f:
+		slices = pickle.load(f)
+	return slices
 
 def save_slices(fname, slices):
-    with open(fname, 'wb') as f:
-        pickle.dump(slices, f)
+	with open(fname, 'wb') as f:
+		pickle.dump(slices, f)
 
 def confidence_for_cluster(logit_vec, cluster):
 	"""
@@ -21,12 +21,12 @@ def confidence_for_cluster(logit_vec, cluster):
 	return logit_vec[cluster.terminals].sum()
 
 def remap_gt(true_label, slc):
-    """
-    Remaps a ground truth terminal label to a truth label within a slice
+	"""
+	Remaps a ground truth terminal label to a truth label within a slice
 
-    :param true_label: terminal label in ground truth
-    :param slc: list of clusters
-    """
+	:param true_label: terminal label in ground truth
+	:param slc: list of clusters
+	"""
 	for i, cluster in enumerate(slc):
 		if true_label in cluster.terminals: return i
 		
@@ -38,9 +38,9 @@ def remap_logits(logit_vec, slc):
 	:param slc: A list of clusters
 	"""
 
-    # logit_vec = [0, l_a, ..., l_tv] 21
-    # slc = [[1], [2], ..., [20]]
-    # conf = [l_a, ..., l_tv] 20
+	# logit_vec = [0, l_a, ..., l_tv] 21
+	# slc = [[1], [2], ..., [20]]
+	# conf = [l_a, ..., l_tv] 20
 
 	conf = []
 	for cluster in slc:

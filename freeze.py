@@ -10,10 +10,10 @@ with tf.Session(graph=tf.Graph()) as sess:
 	saver = tf.train.import_meta_graph(inpt_ckpt+'.meta', clear_devices=True)
 	saver.restore(sess, inpt_ckpt)
 
-	#names = [op.name for op in tf.get_default_graph().get_operations()]
-	#with open('E:/lerner/deeplab/varnames.txt', 'w') as f:
-	#	f.write('\n'.join(names))
-	#exit()	
+	names = [op.name for op in tf.get_default_graph().get_operations()]
+	with open('E:/lerner/deeplab/varnames.txt', 'w') as f:
+		f.write('\n'.join(names))
+	exit()	
 
 	var = tf.get_default_graph().get_tensor_by_name('image')
 	print(var)

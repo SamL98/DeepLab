@@ -8,7 +8,7 @@ from util import *
 tree_fname = sys.argv[1]
 slices = read_slices(tree_fname)
 
-imset = 'val'
+imset = 'test'
 if len(sys.argv) > 2:
 	imset = sys.argv[2]
 
@@ -30,8 +30,8 @@ conf_thresh = 0.75
 for idx in range(1, m+1):
 	print('Performing inference on logit no. %d' % idx)
 
-	logits = loadmat(logit_path % idx)['logits_img'][...,1:].reshape(-1, nc)
-	zero_vec = np.zeros((len(logits)), dtype=logits.dtype)[...,np.newaxis] # shape = (len(logits), 1)
+	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, nc)
+	logits[:,0] = 0
 	logits = np.concatenate((zero_vec, logits), axis=1)
 
 	gt = loadmat(gt_path % idx)['truth_img']

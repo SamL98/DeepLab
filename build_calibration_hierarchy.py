@@ -52,7 +52,7 @@ for idx in range(1, m+1):
 				binno = np.floor(conf/res).astype(np.uint8)
 				binno = min(binno, nb-1)
 
-				if np.argmax(slc_sm) == label:
+				if np.argmax(sm_vec) == label:
 					cluster.corr_hist[binno] += 1
 
 				cluster.count_hist[binno] += 1

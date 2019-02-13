@@ -25,13 +25,13 @@ nb = len(slices[0][0].acc_hist)
 res = 1./nb
 
 vremap_gt = np.vectorize(remap_gt)
+vremap_logits = np.vectorize(remap_logits)
 
 for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)
 
-	logits = loadmat(logit_path % idx)['logits_img'][...,1:].reshape(-1, nc)
-	zero_vec = np.zeros((len(logits)), dtype=logits.dtype)[...,np.newaxis] # shape = (len(logits), 1)
-	logits = np.concatenate((zero_vec, logits), axis=1)
+	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, nc+1)
+	logits[:,0] = 0
 
 	gt = loadmat(gt_path % idx)['truth_img'].ravel()
 
@@ -41,23 +41,24 @@ for idx in range(1, m+1):
 	gt = gt[fg_mask]
 
 	for i, slc in enumerate(slices):
-		slc_logits = np.array([remap_logits(logit_vec, slc) for logit_vec in logits])
+		slc_logits = vremap_logits(logits, slc)
+		slc_gt = vremap_gt(gt, slc)
+		
 		slc_exp_logits = np.exp(slc_logits)
 		slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits, axis=-1)[...,np.newaxis], 1e-7)
 
-		slc_gt = vremap_gt(gt, slc)
-
 		for j, cluster in enumerate(slc):
-			cluster_mask = slc_gt == j
-			slc_gt_masked = slc_gt[cluster_mask]
-			slc_sm_masked = slc_sm[cluster_mask]
+			pred_labels = np.argmax(slc_sm, axis=-1)
+			argmax_mask = pred_labels == j # create a mask of pixels where the current cluster is the argmax
+
+			slc_gt_masked = slc_gt[argmax_mask]
+			slc_sm_masked = slc_sm[argmax_mask]
 
 			sm_conf = slc_sm_masked[:,j]
 			bins = np.floor(sm_conf/res).astype(np.uint8)
 			bins = np.minimum(bins, nb-1)
 
-			pred_labels = np.argmax(slc_sm_masked, axis=-1)
-			cluster.corr_hist[bins] += pred_labels == j
+			cluster.corr_hist[bins] += slc_gt_masked == j
 			cluster.count_hist[bins] += 1
 
 for slc in slices:

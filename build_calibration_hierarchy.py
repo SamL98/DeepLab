@@ -24,6 +24,8 @@ gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
 nb = len(slices[0][0].acc_hist)
 res = 1./nb
 
+vremap_gt = np.vectorize(remap_gt)
+
 for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)
 
@@ -43,20 +45,20 @@ for idx in range(1, m+1):
 		slc_exp_logits = np.exp(slc_logits)
 		slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits, axis=-1)[...,np.newaxis], 1e-7)
 
+		slc_gt = vremap_gt(gt, slc)
+
 		for j, cluster in enumerate(slc):
-			for true_label, sm_vec in zip(gt, slc_sm):
-				label = remap_gt(true_label, slc)
-				if label != j: continue
-				
-				conf = sm_vec[j]
-				binno = np.floor(conf/res).astype(np.uint8)
-				binno = min(binno, nb-1)
+			cluster_mask = slc_gt == j
+			slc_gt_masked = slc_gt[cluster_mask]
+			slc_sm_masked = slc_sm[cluster_mask]
 
-				if np.argmax(sm_vec) == label:
-					cluster.corr_hist[binno] += 1
+			sm_conf = slc_sm_masked[:,j]
+			bins = np.floor(sm_conf/res).astype(np.uint8)
+			bins = np.minimum(bins, nb-1)
 
-				cluster.count_hist[binno] += 1
-
+			pred_labels = np.argmax(slc_sm_masked, axis=-1)
+			cluster.corr_hist[bins] += pred_labels == j
+			cluster.count_hist[bins] += 1
 
 for slc in slices:
 	for cluster in slc:

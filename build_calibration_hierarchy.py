@@ -8,6 +8,11 @@ from util import *
 tree_fname = sys.argv[1]
 slices = read_slices(tree_fname)
 
+for slc in slices:
+	for cluster in slc:
+		cluster.corr_hist[:] = 0
+		cluster.count_hist[:] = 0
+
 imset = 'val'
 if len(sys.argv) > 2:
 	imset = sys.argv[2]
@@ -24,9 +29,6 @@ gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
 nb = len(slices[0][0].acc_hist)
 res = 1./nb
 
-vremap_gt = np.vectorize(remap_gt)
-vremap_logits = np.vectorize(remap_logits)
-
 for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)
 
@@ -41,8 +43,8 @@ for idx in range(1, m+1):
 	gt = gt[fg_mask]
 
 	for i, slc in enumerate(slices):
-		slc_logits = vremap_logits(logits, slc)
-		slc_gt = vremap_gt(gt, slc)
+		slc_logits = np.array([remap_logits(logit_vec, slc) for logit_vec in logits])
+		slc_gt = np.array([remap_gt(lab, slc) for lab in gt])
 		
 		slc_exp_logits = np.exp(slc_logits)
 		slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits, axis=-1)[...,np.newaxis], 1e-7)

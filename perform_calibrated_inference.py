@@ -30,9 +30,8 @@ conf_thresh = 0.75
 for idx in range(1, m+1):
 	print('Performing inference on logit no. %d' % idx)
 
-	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, nc)
+	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, nc+1)
 	logits[:,0] = 0
-	logits = np.concatenate((zero_vec, logits), axis=1)
 
 	gt = loadmat(gt_path % idx)['truth_img']
 	predicted_mask = np.zeros(gt.shape, dtype=np.uint8)
@@ -70,7 +69,7 @@ for idx in range(1, m+1):
 				confident_label = slc[pred_label].cluster_idx
 				break
 
-		pos = np.unravel_index(pix_idx, predicted_mask.shape)
-		predicted_mask[*pos] = confident_label
+		r, c = np.unravel_index(pix_idx, predicted_mask.shape)
+		predicted_mask[r, c] = confident_label
 
 	savemat(pred_path % idx, {'pred_img': predicted_mask})

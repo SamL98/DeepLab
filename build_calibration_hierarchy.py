@@ -12,6 +12,7 @@ for slc in slices:
 	for cluster in slc:
 		cluster.corr_hist[:] = 0
 		cluster.count_hist[:] = 0
+		cluster.acc_hist[:] = 0
 
 imset = 'val'
 if len(sys.argv) > 2:
@@ -28,6 +29,8 @@ gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
 
 nb = len(slices[0][0].acc_hist)
 res = 1./nb
+
+print(nb, res)
 
 for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)

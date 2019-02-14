@@ -5,36 +5,20 @@ import sys
 
 from util import *
 
-tree_fname = sys.argv[1]
-slices = read_slices(tree_fname)
-
-imset = 'test'
-if len(sys.argv) > 2:
-	imset = sys.argv[2]
-
-ds_path = 'D:/datasets/processed/voc2012'
-ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
-#m = ds_info['num_'+imset]
-m = 1449-350
-nc = 20
-
-logit_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat')
-gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
-pred_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred.mat')
-
-nb = len(slices[0][0].acc_hist)
-res = 1./nb
-
-conf_thresh = 0.75
-
-for idx in range(1, m+1):
-	print('Performing inference on logit no. %d' % idx)
-
-	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, nc+1)
+def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False):
+	res = 1./nb
+	
+	ds_path = 'D:/datasets/processed/voc2012'
+	logit_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat')
+	gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
+	
+	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, 21)
 	logits[:,0] = 0
 
 	gt = loadmat(gt_path % idx)['truth_img']
 	predicted_mask = np.zeros(gt.shape, dtype=np.uint8)
+	if ret_conf:
+		conf_mask = np.zeros(gt.shape, dtype=np.float64)
 	gt = gt.ravel()
 
 	# Loop over each pixel's logit vector and its corresponding ground truth
@@ -43,6 +27,8 @@ for idx in range(1, m+1):
 		if true_label == 0 or true_label == 255: continue
 
 		confident_label = 0
+		if ret_conf:
+			confident_conf = 0
 
 		# Loop over each slice, breaking when the confidence threshold is hit
 		for i, slc in enumerate(slices):
@@ -67,9 +53,38 @@ for idx in range(1, m+1):
 
 			if calib_conf >= conf_thresh:
 				confident_label = slc[pred_label].cluster_idx
+				if ret_conf:
+					confident_conf = calib_conf
 				break
 
 		r, c = np.unravel_index(pix_idx, predicted_mask.shape)
 		predicted_mask[r, c] = confident_label
+		if ret_conf:
+			conf_mask[r,c] = confident_conf
+		
+	if ret_conf:
+		return predicted_mask, conf_mask
+	return predicted_mask
+	
 
-	savemat(pred_path % idx, {'pred_img': predicted_mask})
+if __name__ == '__main__':
+	tree_fname = sys.argv[1]
+	slices = read_slices(tree_fname)
+
+	imset = 'test'
+	if len(sys.argv) > 2:
+		imset = sys.argv[2]
+
+	ds_path = 'D:/datasets/processed/voc2012'
+	ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
+	#m = ds_info['num_'+imset]
+	m = 1449-350
+	nc = 20
+
+	pred_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred.mat')
+	nb = len(slices[0][0].acc_hist)
+
+	for idx in range(1, m+1):
+		print('Performing inference on logit no. %d' % idx)
+		predicted_mask = calibrate_logits(idx, imset, slices, nb)
+		savemat(pred_path % idx, {'pred_img': predicted_mask})

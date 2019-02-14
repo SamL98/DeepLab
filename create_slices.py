@@ -9,7 +9,7 @@ ds_info = loadmat('D:/datasets/processed/voc2012/dataset_info.mat')
 classes = ds_info['class_labels'][:-1]
 
 cluster_idx = 1
-res = .5
+res = .05
 nb = int(1./res)
 
 def create_cluster(labels, name):

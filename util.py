@@ -40,10 +40,6 @@ def remap_logits(logit_vec, slc):
 	:param slc: A list of clusters
 	"""
 
-	# logit_vec = [0, l_a, ..., l_tv] 21
-	# slc = [[1], [2], ..., [20]]
-	# conf = [l_a, ..., l_tv] 20
-
 	conf = []
 	for cluster in slc:
 		conf.append(confidence_for_cluster(logit_vec, cluster))

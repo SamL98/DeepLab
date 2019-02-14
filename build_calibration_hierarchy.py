@@ -18,6 +18,9 @@ imset = 'val'
 if len(sys.argv) > 2:
 	imset = sys.argv[2]
 
+# Whether or not to take the softmax of logits at each slice
+sm_by_slice = True
+
 ds_path = 'D:/datasets/processed/voc2012'
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 #m = ds_info['num_'+imset]
@@ -45,12 +48,19 @@ for idx in range(1, m+1):
 	logits = logits[fg_mask]
 	gt = gt[fg_mask]
 
+	if not sm_by_slice:
+		exp_logits = np.exp(logits)
+		sm = exp_logits / np.maximum(np.sum(exp_logits, axis=-1)[...,np.newaxis], 1e-7)
+
 	for i, slc in enumerate(slices):
-		slc_logits = np.array([remap_logits(logit_vec, slc) for logit_vec in logits])
 		slc_gt = np.array([remap_gt(lab, slc) for lab in gt])
 		
-		slc_exp_logits = np.exp(slc_logits)
-		slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits, axis=-1)[...,np.newaxis], 1e-7)
+		if sm_by_slice:
+			slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
+			slc_exp_logits = np.exp(slc_logits)
+			slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits, axis=-1)[...,np.newaxis], 1e-7)
+		else:
+			slc_sm = np.array([remap_scores(sm_vec, slc) for sm_vec in sm])
 
 		for j, cluster in enumerate(slc):
 			pred_labels = np.argmax(slc_sm, axis=-1)

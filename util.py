@@ -32,15 +32,15 @@ def remap_gt(true_label, slc):
 	for i, cluster in enumerate(slc):
 		if true_label in cluster.terminals: return i
 		
-def remap_logits(logit_vec, slc):
+def remap_scores(vec, slc):
 	"""
-	Takes a terminal logit vector and groups the logits by clusters in the slice
+	Takes a logit or softmax vector and groups the logits by clusters in the slice
 
-	:param logit_vec: A length-nc logit vector
+	:param vec: A length-nc score vector
 	:param slc: A list of clusters
 	"""
 
 	conf = []
 	for cluster in slc:
-		conf.append(confidence_for_cluster(logit_vec, cluster))
+		conf.append(confidence_for_cluster(vec, cluster))
 	return np.array(conf)

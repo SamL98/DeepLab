@@ -9,7 +9,7 @@ def interp_cluster(cluster):
     xp = np.arghwere(hist > 0)
     yp = hist[hist > 0]
 
-    y_interp = np.interp(xs, xp, yp)
+    y_interp = np.interp(xs, xp, yp, left=)
     hist[hist == 0] = y_interp
 
 

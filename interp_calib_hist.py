@@ -8,11 +8,23 @@ def interp_cluster(cluster):
     xs = np.argwhere(hist == 0)
     xp = np.arghwere(hist > 0)
     yp = hist[hist > 0]
+	
+	if cluster.count_hist[0] == 0 and hist[0] == [0]:
+		xp = np.concatenate((0, xp))
+		yp = np.concatenate((0, yp))
+		
+	if cluster.count_hist[-1] == 0 and hist[-1] == 0:
+		xp = np.concatenate((xp, len(hist)-1))
+		yp = np.concatenate((yp, 1))
 
     y_interp = np.interp(xs, xp, yp, left=)
     hist[hist == 0] = y_interp
+	
+	return hist
 
 
 for slc in slices:
     for cluster in slc:
-        interp_cluster(cluster)
+        cluster.acc_hist[:] = interp_cluster(cluster)
+		
+save_slices('slices.pkl', slices)

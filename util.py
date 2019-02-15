@@ -13,14 +13,14 @@ def save_slices(fname, slices):
 	with open(fname, 'wb') as f:
 		pickle.dump(slices, f)
 
-def confidence_for_cluster(logit_vec, cluster):
+def confidence_for_cluster(vec, cluster):
 	"""
 	Takes a logit vector and returns the sum of logit values for terminals in the given cluster
 
 	:param logit_vec: A length-nc logit vector
 	:param cluster: A cluster named tuple
 	"""
-	return logit_vec[cluster.terminals].sum()
+	return vec[cluster.terminals].sum()
 
 def remap_gt(true_label, slc):
 	"""

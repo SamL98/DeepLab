@@ -40,6 +40,7 @@ print(nb, res)
 
 for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)
+	sys.stdout.flush()
 
 	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, nc+1)
 
@@ -63,10 +64,11 @@ for idx in range(1, m+1):
 		if sm_by_slice:
 			slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
 			slc_exp_logits = np.exp(slc_logits)
-			slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits, axis=-1)[...,np.newaxis], 1e-7)
+			slc_sm = slc_exp_logits / np.maximum(slc_exp_logits.sum(-1)[:,np.newaxis], 1e-7)
 		else:
 			slc_sm = np.array([remap_scores(sm_vec, slc) for sm_vec in sm])
 
+			
 		for j, cluster in enumerate(slc):
 			pred_labels = np.argmax(slc_sm, axis=-1)
 			argmax_mask = pred_labels == j # create a mask of pixels where the current cluster is the argmax
@@ -76,13 +78,15 @@ for idx in range(1, m+1):
 
 			sm_conf = slc_sm_masked[:,j]
 			bins = np.floor(sm_conf/res).astype(np.uint8)
-			bins = np.minimum(bins, nb-1)
+			bins = np.minimum(bins, nb-1) # bins has length 512*512 where each bin is in range 0..nb-1
 
-			cluster.corr_hist[bins] += slc_gt_masked == j
-			cluster.count_hist[bins] += 1
+			for binno in np.unique(bins):
+				bin_mask = bins == binno # mask the pixels that had a softmax in bin binno
+				cluster.corr_hist[binno] += (slc_gt_masked[bin_mask] == j).sum()
+				cluster.count_hist[binno] += bin_mask.sum()
 
 for slc in slices:
 	for cluster in slc:
-		cluster.acc_hist[:] = cluster.corr_hist.astype(np.float32) / cluster.count_hist.astype(np.float32)
+		cluster.acc_hist[:] = cluster.corr_hist.astype(np.float32) / np.maximum(1e-7, cluster.count_hist.astype(np.float32))
 
 save_slices(tree_fname, slices)

@@ -5,7 +5,7 @@ import sys
 
 from util import *
 
-def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, ds_factor=1):
+def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, ds_factor=1, sm_by_slice=True):
 	res = 1./nb
 	
 	ds_path = 'D:/datasets/processed/voc2012'
@@ -25,9 +25,19 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 	if ret_conf:
 		conf_mask = np.zeros(gt.shape, dtype=np.float64)
 	gt = gt.ravel()
+	
+	scores = logits
+	
+	if not sm_by_slice:
+		exp_logits = np.exp(logits[:,1:])
+		sm = exp_logits / np.maximum(np.sum(exp_logits, axis=-1)[...,np.newaxis], 1e-7)
+		
+		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
+		sm = np.concatenate((zero_vec, sm), axis=1)
+		scores = sm
 
 	# Loop over each pixel's logit vector and its corresponding ground truth
-	for pix_idx, (true_label, logit_vec) in enumerate(zip(gt, logits)):
+	for pix_idx, (true_label, score_vec) in enumerate(zip(gt, scores)):
 		# If the ground truth is background or void, ignore
 		if true_label == 0 or true_label == 255: continue
 
@@ -37,12 +47,15 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 
 		# Loop over each slice, breaking when the confidence threshold is hit
 		for i, slc in enumerate(slices):
-			# Remap the logits to the slice clusters
-			slc_logits = remap_scores(logit_vec, slc)
+			if sm_by_slice:
+				# Remap the logits to the slice clusters
+				slc_logits = remap_scores(score_vec, slc)
 
-			# Take the softmax of the remapped logits
-			slc_exp_logits = np.exp(slc_logits)
-			slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits), 1e-7)
+				# Take the softmax of the remapped logits
+				slc_exp_logits = np.exp(slc_logits)
+				slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits), 1e-7)
+			else:
+				slc_sm = remap_scores(score_vec, slc)
 
 			# Get the predicted label (index within the cluster)
 			pred_label = np.argmax(slc_sm)

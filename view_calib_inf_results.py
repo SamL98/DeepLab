@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from util import read_slices
 from perform_calibrated_inference import calibrate_logits
 
-slices = read_slices('slices.pkl')
+slices = read_slices('slices_sm.pkl')
 
 import sys
 if len(sys.argv) > 1:
@@ -40,7 +40,7 @@ if len(sys.argv) > 2:
 	
 downsample_factor = 1
 	
-calib_pred, calib_conf = calibrate_logits(idx, imset, slices, len(slices[0][0].acc_hist), conf_thresh=conf_thresh, ret_conf=True, ds_factor=downsample_factor)
+calib_pred, calib_conf = calibrate_logits(idx, imset, slices, len(slices[0][0].acc_hist), conf_thresh=conf_thresh, ret_conf=True, ds_factor=downsample_factor, sm_by_slice=False)
 
 print('GT Labels:')
 for lab in np.unique(gt):
@@ -66,6 +66,7 @@ for lab in np.unique(calib_pred):
 		base += len(slice)
 print('***')
 
+max_label = calib_pred.max()
 
 fig, ax = plt.subplots(2, 2)
 
@@ -73,16 +74,16 @@ ax[0,0].imshow(img)
 ax[0,0].set_title('Input')
 ax[0,0].axis('off')
 
-ax[0,1].imshow(gt, 'jet', vmin=0, vmax=20)
+ax[0,1].imshow(gt, 'jet', vmin=0, vmax=max_label)
 ax[0,1].set_title('Ground Truth')
 ax[0,1].axis('off')
 
-ax[1,0].imshow(dl_pred, 'jet', vmin=0, vmax=20)
+ax[1,0].imshow(dl_pred, 'jet', vmin=0, vmax=max_label)
 #ax[1,0].imshow(calib_conf, 'gray', vmin=0, vmax=1)
 ax[1,0].set_title('DeepLab Pred')
 ax[1,0].axis('off')
 
-ax[1,1].imshow(calib_pred, 'jet', vmin=0, vmax=20)
+ax[1,1].imshow(calib_pred, 'jet', vmin=0, vmax=max_label)
 ax[1,1].set_title('Calibrated Pred')
 ax[1,1].axis('off')
 

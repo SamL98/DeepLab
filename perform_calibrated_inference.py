@@ -5,15 +5,20 @@ import sys
 
 from util import *
 
-def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False):
+def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, ds_factor=1):
 	res = 1./nb
 	
 	ds_path = 'D:/datasets/processed/voc2012'
 	logit_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat')
 	gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
 	
-	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, 21)
-	logits[:,0] = 0
+	logits = loadmat(logit_path % idx)['logits_img']
+	
+	if ds_factor > 1:
+		assert(type(ds_factor) == int)
+		logits = logits[::ds_factor, ::ds_factor].reshape(-1, 21)
+	else:
+		logits = logits.reshape(-1, 21)
 
 	gt = loadmat(gt_path % idx)['truth_img']
 	predicted_mask = np.zeros(gt.shape, dtype=np.uint8)
@@ -33,7 +38,7 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False):
 		# Loop over each slice, breaking when the confidence threshold is hit
 		for i, slc in enumerate(slices):
 			# Remap the logits to the slice clusters
-			slc_logits = remap_logits(logit_vec, slc)
+			slc_logits = remap_scores(logit_vec, slc)
 
 			# Take the softmax of the remapped logits
 			slc_exp_logits = np.exp(slc_logits)
@@ -61,6 +66,13 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False):
 		predicted_mask[r, c] = confident_label
 		if ret_conf:
 			conf_mask[r,c] = confident_conf
+			
+	if ds_factor > 1:
+		from skimage.transform import resize
+		predicted_mask = resize(predicted_mask, 
+							(predicted_mask.shape[0]*ds_factor, predicted_mask.shape[1]*ds_factor), 
+							order=0,
+							preserve_range=True).astype(np.uint8)
 		
 	if ret_conf:
 		return predicted_mask, conf_mask

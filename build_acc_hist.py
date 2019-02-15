@@ -51,28 +51,28 @@ for idx in range(1, num_img+1):
 
 acc_hist = correct_hist.astype(np.float64)/np.maximum(1e-7, count_hist)
 
-below_vals, above_vals = [], []
-colors = []
+below_vals, above_vals = np.zeros_like(acc_hist), np.zeros_like(acc_hist)
+exps = np.array([i*acc_res for i in range(len(acc_hist))])
 
 for i, acc in enumerate(acc_hist):
 	val = i*acc_res
 	
 	if acc < val:
-		below_vals.append(acc)
-		above_vals.append(val-acc)
-		colors.append('r')
+		below_vals[i] = val-acc
 	else:
-		below_vals.append(val)
-		above_vals.append(acc-val)
-		colors.append('tab:orange')
+		above_vals[i] = acc-val
+
 		
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
 fig, ax = plt.subplots()
 
-ax.bar(range(len(below_vals)), below_vals, align='edge')
-ax.bar(range(len(above_vals)), above_vals, align='edge', bottom=below_vals, color=colors)
+for v in range(len(acc_hist)):
+	ax.plot([0, len(acc_hist)], [v*acc_res, v*acc_res], color='tab:gray', linestyle='--', alpha=0.5)
+	
+ax.bar(range(len(below_vals)), below_vals, align='edge', bottom=(exps-below_vals), color='#1f77b4')
+ax.bar(range(len(above_vals)), above_vals, align='edge', bottom=exps, color='#1f77b4')
 
 ax.set_xlabel('Confidence')
 ax.xaxis.set_ticks(np.linspace(0, acc_hist.shape[0], num=6))
@@ -83,10 +83,9 @@ ax.yaxis.set_ticks(np.linspace(0.0, 1.0, num=6))
 
 ax.set_title('Accuracy on %s Set' % imset)
 
-blue_patch = Patch(color='b', label='Correct Accuracy')
-red_patch = Patch(color='r', label='Amount Overconfident')
-orange_patch = Patch(color='tab:orange', label='Amount Underconfident')
-ax.legend(handles=[blue_patch, red_patch, orange_patch])
+blue_patch = Patch(color='#1f77b4', label='|Actual - Expected| accuracy')
+gray_patch = Patch(linestyle='--', label='Expected accuracy', edgecolor='tab:gray', facecolor='w')
+ax.legend(handles=[blue_patch, gray_patch], loc=2)
 
 fig.savefig('images/acc_hist.png', bbox_inches='tight')
 plt.show()

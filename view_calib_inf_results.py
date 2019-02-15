@@ -13,7 +13,7 @@ import sys
 if len(sys.argv) > 1:
 	idx = int(sys.argv[1])
 else:
-	m = 200#1449-350
+	m = 350#1449-350
 	idx = np.random.choice(m, 1)[0]
 	print(idx)
 
@@ -33,7 +33,14 @@ gt[gt==255] = 0
 dl_pred = loadmat(dl_pred_path % idx)['pred_img']+1
 dl_pred[(gt==0)] = 0
 #calib_pred = loadmat(calib_pred_path % idx)['pred_img']
-calib_pred, calib_conf = calibrate_logits(idx, imset, slices, len(slices[0][0].acc_hist), conf_thresh=0.85, ret_conf=True)
+
+conf_thresh = 0.75
+if len(sys.argv) > 2:
+	conf_thresh = float(sys.argv[2])
+	
+downsample_factor = 1
+	
+calib_pred, calib_conf = calibrate_logits(idx, imset, slices, len(slices[0][0].acc_hist), conf_thresh=conf_thresh, ret_conf=True, ds_factor=downsample_factor)
 
 print('GT Labels:')
 for lab in np.unique(gt):

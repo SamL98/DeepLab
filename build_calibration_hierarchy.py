@@ -19,7 +19,10 @@ if len(sys.argv) > 2:
 	imset = sys.argv[2]
 
 # Whether or not to take the softmax of logits at each slice
-sm_by_slice = True
+sm_by_slice = False
+
+if not sm_by_slice:
+	tree_fname = 'slices_sm.pkl'
 
 ds_path = 'D:/datasets/processed/voc2012'
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
@@ -39,7 +42,6 @@ for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)
 
 	logits = loadmat(logit_path % idx)['logits_img'].reshape(-1, nc+1)
-	logits[:,0] = 0
 
 	gt = loadmat(gt_path % idx)['truth_img'].ravel()
 
@@ -49,8 +51,11 @@ for idx in range(1, m+1):
 	gt = gt[fg_mask]
 
 	if not sm_by_slice:
-		exp_logits = np.exp(logits)
+		exp_logits = np.exp(logits[:,1:])
 		sm = exp_logits / np.maximum(np.sum(exp_logits, axis=-1)[...,np.newaxis], 1e-7)
+		
+		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
+		sm = np.concatenate((zero_vec, sm), axis=1)
 
 	for i, slc in enumerate(slices):
 		slc_gt = np.array([remap_gt(lab, slc) for lab in gt])

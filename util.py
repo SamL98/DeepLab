@@ -1,12 +1,57 @@
 import pickle
 from collections import namedtuple
 import numpy as np
+from hdf5storage import loadmat
+from os.path import join
 
 Cluster = namedtuple('Cluster', 'name cluster_idx terminals corr_hist count_hist acc_hist')
 
-def read_slices(fname):
+ds_path = 'D:/datasets/processed/voc2012'
+ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
+nc = ds_info['num_classes']
+
+def num_img_for(imset):
+	val_size = 350
+
+	if imset == 'val':
+		return val_size
+	else:
+		return 1449-val_size
+
+def load_gt(imset, idx, reshape=False):
+	global ds_path
+
+	gt = loadmat(join(ds_path, imset, imset+'_%06d_pixeltruth.mat') % idx)['truth_img']
+
+	if reshape:
+		gt = gt.ravel()
+
+	return gt
+
+def load_logits(imset, idx, reshape=False):
+	global ds_path
+
+	lgts = loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat') % idx)['logits_img']
+
+	if reshape:
+		global nc
+		lgts = lgts.reshape(-1, nc)
+
+	return lgts
+
+def fg_mask_for(gt):
+	return ((gt > 0) & (gt < 255))
+
+def read_slices(fname, reset=False):
 	with open(fname, 'rb') as f:
 		slices = pickle.load(f)
+
+	if reset:
+		for slc in slices:
+			for node in slc:
+				node.corr_hist[:] = 0
+				node.count_hist[:] = 0
+				node.acc_hist[:] = 0
 	return slices
 
 def save_slices(fname, slices):

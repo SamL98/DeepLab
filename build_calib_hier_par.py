@@ -13,72 +13,105 @@ def poolcontext(*args, **kwargs):
     yield pool
     pool.terminate()
 
+# Get the histograms for the given logits and ground truth labels
+def hists_for_pixels(logits, gt, slices, args):
+	# If we are not taking the softmax by slice, take the softmax once and be done with it
+	if not args.sm_by_slice:
+		# Since we are ignoring background, take out the frist column of the logits
+		exp_logits = np.exp(logits[:,1:])
+		sm = exp_logits / np.maximum(np.sum(exp_logits, axis=-1)[...,np.newaxis], 1e-7)
+		
+		# However, the terminals in the hierarchy are 1-indexed so we need to pad with zeros to have the remap functions index correctly
+		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
+		sm = np.concatenate((zero_vec, sm), axis=1)
+
+
+	for i, slc in enumerate(slices):
+		# Remap the ground truth to the local labels of the current slice
+		slc_gt = np.array([remap_gt(lab, slc) for lab in gt])
+		
+		# If we are taking the softmax by slice, remap the logits then take the softmax
+		#
+		# Otherwise, just remap the softmax previously computed
+		if args.sm_by_slice:
+			slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
+			slc_exp_logits = np.exp(slc_logits)
+			slc_sm = slc_exp_logits / np.maximum(slc_exp_logits.sum(-1)[:,np.newaxis], 1e-7)
+		else:
+			slc_sm = np.array([remap_scores(sm_vec, slc) for sm_vec in sm])
+
+			
+		for j, node in enumerate(slc):
+			# Since we are measuring precision in the calibration histograms, mask the ground truth and softmax by where the current node is softmax
+			pred_labels = np.argmax(slc_sm, axis=-1)
+			argmax_mask = pred_labels == j
+
+			slc_gt_masked = slc_gt[argmax_mask]
+			slc_sm_masked = slc_sm[argmax_mask]
+
+			# Because of the previous mask, the j-th softmax value will always be the max
+			sm_conf = slc_sm_masked[:,j]
+			bins = np.floor(sm_conf/res).astype(np.uint8)
+
+			# If sm_conf happend to be 1, then the bin will be nb which will cause an IndexError
+			bins = np.minimum(bins, nb-1)
+
+			for binno in np.unique(bins):
+				# Mask the bin vector and ground truth by the current bin number
+				bin_mask = bins == binno
+				
+				# We are already assured that j was predicted so the corre_hist is accumumlated by how many times we were right
+				node.corr_hist[binno] += (slc_gt_masked[bin_mask] == j).sum()
+
+				# The count hist is simply how many times this bin was measured
+				node.count_hist[binno] += bin_mask.sum()
+
+	return slices
+
 
 # Return the correct and count histograms given the hierarchy specified by slices
 def get_hists_for_idxs(idxs, slices, args):
 	nb = len(slices[0][0].acc_hist)
 	res = 1./nb
 
-	for idx in idxs:
-		logits = load_logits(args.imset, idx, reshape=True)
-		gt = load_gt(args.imset, idx, reshape=True)
+	if args.load_to_memory:
+		# If we are loading all of the pixels into memory, creating arrays for the logits and ground truth
+		# labels that have the capacity of as many pixels there are in the image set
+		num_pixel = len(idxs) * img_size**2
+		logits = np.zeros((num_pixel, nc), dtype=np.float32)
+		gt = np.zeros((num_pixel), dtype=np.uint8)
 
-		fg_mask = fg_mask_for(gt)
-		logits = logits[fg_mask]
-		gt = gt[fg_mask]
+		# Load all of the logits and labels for each image into the buffers
+		num_fg_pixels = 0
+		for idx in idxs:
+			im_logits = load_logits(args.imset, idx, reshape=True)
+			im_gt = load_gt(args.imset, idx, reshape=True)
 
+			fg_mask = fg_mask_for(gt)
+			im_logits = im_logits[fg_mask]
+			im_gt = im_gt[fg_mask]
 
-		# If we are not taking the softmax by slice, take the softmax once and be done with it
-		if not args.sm_by_slice:
-			# Since we are ignoring background, take out the frist column of the logits
-			exp_logits = np.exp(logits[:,1:])
-			sm = exp_logits / np.maximum(np.sum(exp_logits, axis=-1)[...,np.newaxis], 1e-7)
-			
-			# However, the terminals in the hierarchy are 1-indexed so we need to pad with zeros to have the remap functions index correctly
-			zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
-			sm = np.concatenate((zero_vec, sm), axis=1)
+			logits[num_fg_pixels:num_fg_pixels+len(im_logits)] = im_logits[:]
+			gt[num_fg_pixels:num_fg_pixels+len(im_gt)] = im_gt[:]
+			num_fg_pixels += fg_mask.sum()
 
+		# Only keep the pixels that we stored into the buffer
+		logits = logits[:num_fg_pixels]
+		gt = gt[:num_fg_pixels]
 
-		for i, slc in enumerate(slices):
-			# Remap the ground truth to the local labels of the current slice
-			slc_gt = np.array([remap_gt(lab, slc) for lab in gt])
-			
-			# If we are taking the softmax by slice, remap the logits then take the softmax
-			#
-			# Otherwise, just remap the softmax previously computed
-			if args.sm_by_slice:
-				slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
-				slc_exp_logits = np.exp(slc_logits)
-				slc_sm = slc_exp_logits / np.maximum(slc_exp_logits.sum(-1)[:,np.newaxis], 1e-7)
-			else:
-				slc_sm = np.array([remap_scores(sm_vec, slc) for sm_vec in sm])
+		# Compute the histograms on these arrays -- it should be mostly vectorized
+		slices = hists_for_pixels(logits, gt, slices, args)
+	else:
+		# If we are computing the histograms on the fly, load each image individually and accumulate all the histograms
+		for idx in idxs:
+			logits = load_logits(args.imset, idx, reshape=True)
+			gt = load_gt(args.imset, idx, reshape=True)
 
-				
-			for j, node in enumerate(slc):
-				# Since we are measuring precision in the calibration histograms, mask the ground truth and softmax by where the current node is softmax
-				pred_labels = np.argmax(slc_sm, axis=-1)
-				argmax_mask = pred_labels == j
+			fg_mask = fg_mask_for(gt)
+			logits = logits[fg_mask]
+			gt = gt[fg_mask]
 
-				slc_gt_masked = slc_gt[argmax_mask]
-				slc_sm_masked = slc_sm[argmax_mask]
-
-				# Because of the previous mask, the j-th softmax value will always be the max
-				sm_conf = slc_sm_masked[:,j]
-				bins = np.floor(sm_conf/res).astype(np.uint8)
-
-				# If sm_conf happend to be 1, then the bin will be nb which will cause an IndexError
-				bins = np.minimum(bins, nb-1)
-
-				for binno in np.unique(bins):
-					# Mask the bin vector and ground truth by the current bin number
-					bin_mask = bins == binno
-					
-					# We are already assured that j was predicted so the corre_hist is accumumlated by how many times we were right
-					node.corr_hist[binno] += (slc_gt_masked[bin_mask] == j).sum()
-
-					# The count hist is simply how many times this bin was measured
-					node.count_hist[binno] += bin_mask.sum()
-
+			slices = hists_for_pixels(logits, gt, slices, args)
 
 	return slices
 
@@ -103,6 +136,7 @@ parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='Th
 parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 parser.add_argument('--dont_reset', dest='reset', action='store_false', help='Pass if you want to accumulate calibration histograms. Normally they are reset when this script is run.')
 parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_false', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
+parser.add_argument('--load_to_memory', dest='load_to_memory', action='store_true', help='Whether or not to store the batches into memory (you need a lot).')
 
 
 if __name__ == '__main__':

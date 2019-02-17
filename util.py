@@ -4,11 +4,13 @@ import numpy as np
 from hdf5storage import loadmat
 from os.path import join
 
-Cluster = namedtuple('Cluster', 'name cluster_idx terminals corr_hist count_hist acc_hist')
+Node = namedtuple('Cluster', 'name cluster_idx terminals corr_hist count_hist acc_hist')
 
 ds_path = 'D:/datasets/processed/voc2012'
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 nc = ds_info['num_classes']
+classes = ds_info['class_labels']
+img_size = 512
 
 def num_img_for(imset):
 	val_size = 350

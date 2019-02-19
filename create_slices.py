@@ -28,8 +28,6 @@ def create_single_node(label):
 	return create_node([label], label)
 
 
-
-
 if __name__ == '__main__':
 	slices = [[create_single_node(classes[i]) for i in range(1, len(classes))]]
 

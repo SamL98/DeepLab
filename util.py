@@ -104,7 +104,7 @@ def get_depth_of_label(pred_label, slices):
 		# Otherwise, iterate through the slices until the predicted label is within the current slice and return that depth.
 		total_nodes = 0
 		for i, slc in enumerate(slices):
-			if pred_label > len(slc)+total_nodes:
+			if pred_label > len(slc)+total_nodes+1:
 				total_nodes += len(slc)
 				continue
 			return len(slices)-i			
@@ -114,7 +114,7 @@ def is_in_gt_path(pred_label, gt_label, slices):
 	for slc in slices:
 		# Accumulate the total nodes before the current slice so that when gt_label is remapped
 		# to the local indices of the slice, that base is added to test for equality with the predicted label.
-		if pred_label > len(slc)+total_nodes:
+		if pred_label > len(slc)+total_nodes+1:
 			total_nodes += len(slc)
 			continue
 

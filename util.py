@@ -50,7 +50,6 @@ def load_logits(imset, idx, reshape=False):
 
 
 
-
 '''
 Mask Processing Utilities
 '''
@@ -67,6 +66,42 @@ def sm_of_logits(logits, start_idx=0, zero_pad=False):
 		sm = np.concatenate((zero_vec, sm), axis=1)
 
 	return sm
+
+
+
+'''
+Tree Utilities
+'''
+
+def get_depth_of_label(pred_label, slices):
+	if pred_label < len(slices[0]):
+		# If pred_label is a terminal, it's parent could be a few levels up in the hierarchy.
+		#
+		# Therefore, iterate through the slices until the terminal label is in a node with more than one child.
+		# Then return that depth plus one since the depth of the terminal is actually one lower.
+		for i, slc in enumerate(slices):
+			for node in slc:
+				terms = node.terminals
+				if pred_label in terms and len(terms) > 1:
+					return len(slices)-i+1
+	else:
+		total_nodes = 0
+		for i, slc in enumerate(slices):
+			if pred_label > len(slc)+total_nodes:
+				total_nodes += len(slc)
+				continue
+			return len(slices)-i			
+
+def is_in_gt_path(pred_label, gt_label, slice):
+	total_nodes = 0
+	for slc in slices:
+		if pred_label > len(slc)+total_nodes:
+			total_nodes += len(slc)
+			continue
+
+		gt_remapped = remap_gt(gt_label, slc) + total_nodes
+		return gt_remapped == pred_label
+
 
 
 '''
@@ -89,14 +124,14 @@ def save_slices(fname, slices):
 	with open(fname, 'wb') as f:
 		pickle.dump(slices, f)
 
-def confidence_for_cluster(vec, cluster):
+def confidence_for_node(vec, node):
 	"""
-	Takes a logit vector and returns the sum of logit values for terminals in the given cluster
+	Takes a logit vector and returns the sum of logit values for terminals in the given node
 
 	:param logit_vec: A length-nc logit vector
-	:param cluster: A cluster named tuple
+	:param node: A node named tuple
 	"""
-	return vec[cluster.terminals].sum()
+	return vec[node.terminals].sum()
 
 def remap_gt(true_label, slc):
 	"""
@@ -105,8 +140,8 @@ def remap_gt(true_label, slc):
 	:param true_label: terminal label in ground truth
 	:param slc: list of clusters
 	"""
-	for i, cluster in enumerate(slc):
-		if true_label in cluster.terminals: return i
+	for i, node in enumerate(slc):
+		if true_label in node.terminals: return i
 		
 def remap_scores(vec, slc):
 	"""
@@ -117,6 +152,6 @@ def remap_scores(vec, slc):
 	"""
 
 	conf = []
-	for cluster in slc:
-		conf.append(confidence_for_cluster(vec, cluster))
+	for node in slc:
+		conf.append(confidence_for_node(vec, node))
 	return np.array(conf)

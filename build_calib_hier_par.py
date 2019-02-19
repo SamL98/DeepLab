@@ -14,7 +14,7 @@ def poolcontext(num_proc):
     pool.terminate()
 
 # Get the histograms for the given logits and ground truth labels
-def hists_for_pixels(logits, gt, slices, args, res):
+def hists_for_pixels(logits, gt, slices, args, res, nb):
 	# If we are not taking the softmax by slice, take the softmax once and be done with it
 	if not args.sm_by_slice:
 		sm = sm_of_logits(logits, start_idx=1, zero_pad=True)
@@ -93,7 +93,7 @@ def get_hists_for_idxs(idxs, slices, args):
 		gt = gt[:num_fg_pixels]
 
 		# Compute the histograms on these arrays -- it should be mostly vectorized
-		slices = hists_for_pixels(logits, gt, slices, args, res)
+		slices = hists_for_pixels(logits, gt, slices, args, res, nb)
 	else:
 		# If we are computing the histograms on the fly, load each image individually and accumulate all the histograms
 		for idx in idxs:
@@ -104,7 +104,7 @@ def get_hists_for_idxs(idxs, slices, args):
 			logits = logits[fg_mask]
 			gt = gt[fg_mask]
 
-			slices = hists_for_pixels(logits, gt, slices, args, res)
+			slices = hists_for_pixels(logits, gt, slices, args, res, nb)
 
 	return slices
 

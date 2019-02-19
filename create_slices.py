@@ -4,24 +4,24 @@ from collections import namedtuple
 import numpy as np
 from util import classes
 
-cluster_idx = 1
+node_idx = 1
 res = .05
 nb = int(1./res)
 
 def create_node(labels, name):
-	global cluster_idx, nb
+	global node_idx, nb
 
 	terminals = []
 	for label in labels:
 		terminals.append(classes.index(label))
 
 	clust =  Node(name, 
-				cluster_idx, 
+				node_idx, 
 				terminals, 
 				np.zeros((nb), dtype=np.uint64), 
 				np.zeros((nb), dtype=np.uint64), 
 				np.zeros((nb), dtype=np.float32))
-	cluster_idx += 1
+	node_idx += 1
 	return clust
 
 def create_single_node(label):

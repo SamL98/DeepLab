@@ -4,13 +4,20 @@ import numpy as np
 from hdf5storage import loadmat
 from os.path import join
 
-Node = namedtuple('Cluster', 'name cluster_idx terminals corr_hist count_hist acc_hist')
+Node = namedtuple('Node', 'name node_idx terminals corr_hist count_hist acc_hist')
 
 ds_path = 'D:/datasets/processed/voc2012'
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 nc = ds_info['num_classes']
 classes = ds_info['class_labels']
 img_size = 512
+
+
+
+
+'''
+Loading Utilities
+'''
 
 def num_img_for(imset):
 	val_size = 350
@@ -41,8 +48,22 @@ def load_logits(imset, idx, reshape=False):
 
 	return lgts
 
+
+
+
+'''
+Mask Processing Utilities
+'''
+
 def fg_mask_for(gt):
 	return ((gt > 0) & (gt < 255))
+
+
+
+
+'''
+Slice Utilities
+'''
 
 def read_slices(fname, reset=False):
 	with open(fname, 'rb') as f:

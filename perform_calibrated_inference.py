@@ -8,11 +8,7 @@ from util import *
 def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, ds_factor=1, sm_by_slice=True):
 	res = 1./nb
 	
-	ds_path = 'D:/datasets/processed/voc2012'
-	logit_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat')
-	gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
-	
-	logits = loadmat(logit_path % idx)['logits_img']
+	logits = load_logits(imset, idx, reshape=False)
 	
 	if ds_factor > 1:
 		assert(type(ds_factor) == int)
@@ -20,13 +16,15 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 	else:
 		logits = logits.reshape(-1, 21)
 
-	gt = loadmat(gt_path % idx)['truth_img']
+
+	gt = load_gt(imset, idx, reshape=False)
 	predicted_mask = np.zeros(gt.shape, dtype=np.uint8)
+
 	if ret_conf:
 		conf_mask = np.zeros(gt.shape, dtype=np.float64)
+
 	gt = gt.ravel()
-	
-	scores = logits
+
 	
 	if not sm_by_slice:
 		exp_logits = np.exp(logits[:,1:])
@@ -35,6 +33,8 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
 		sm = np.concatenate((zero_vec, sm), axis=1)
 		scores = sm
+	else:
+		scores = logits
 
 	# Loop over each pixel's logit vector and its corresponding ground truth
 	for pix_idx, (true_label, score_vec) in enumerate(zip(gt, scores)):
@@ -70,7 +70,12 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 			calib_conf = acc_hist[binno]
 
 			if calib_conf >= conf_thresh:
-				confident_label = slc[pred_label].cluster_idx
+				# If we predicted a terminal label in not the first slice, output the terminal label, not the node index
+				if len(slc[pred_label].terminals) == 1:
+					confident_label = slc[pred_label].terminals[0]
+				else:
+					confident_label = slc[pred_label].node_idx
+
 				if ret_conf:
 					confident_conf = calib_conf
 				break

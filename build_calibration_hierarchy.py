@@ -19,7 +19,7 @@ if len(sys.argv) > 2:
 	imset = sys.argv[2]
 
 # Whether or not to take the softmax of logits at each slice
-sm_by_slice = False
+sm_by_slice = True
 
 if not sm_by_slice:
 	tree_fname = 'slices_sm.pkl'
@@ -35,8 +35,6 @@ gt_path = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat')
 
 nb = len(slices[0][0].acc_hist)
 res = 1./nb
-
-print(nb, res)
 
 for idx in range(1, m+1):
 	print('Binning logit no. %d' % idx)
@@ -87,6 +85,6 @@ for idx in range(1, m+1):
 
 for slc in slices:
 	for cluster in slc:
-		cluster.acc_hist[:] = cluster.corr_hist.astype(np.float32) / np.maximum(1e-7, cluster.count_hist.astype(np.float32))
+		cluster.acc_hist[:] = cluster.corr_hist.astype(np.float32) / np.maximum(1e-5, cluster.count_hist.astype(np.float32))
 
 save_slices(tree_fname, slices)

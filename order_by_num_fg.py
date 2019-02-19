@@ -11,14 +11,14 @@ def order_imset_by_num_fg(imset, save=False):
     for idx in range(1, num_img+1):
         gt = load_gt(imset, idx)
         fg_count = fg_mask_for(gt).sum()
-        num_fg.append(fg_count)
+        num_fg_list.append(fg_count)
 
-    ordered_idxs = list(reversed(np.argsort(np.array(num_fg))+1))
+    ordered_idxs = list(reversed(np.argsort(np.array(num_fg_list))+1))
 
     if save:
         fname = imset.lower() + '_ordered.txt'
         with open(fname, 'w') as f:
-            f.write('\n'.join([str(idx) for idx in ordered_num_fg]))
+            f.write('\n'.join([str(idx) for idx in ordered_idxs]))
 
     return ordered_idxs
 

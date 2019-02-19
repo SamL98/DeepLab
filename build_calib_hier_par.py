@@ -1,6 +1,6 @@
 import numpy as np
 import multiprocessing as mp
-from contexlib import contextmanager
+from contextlib import contextmanager
 from hdf5storage import loadmat, savemat
 from os.path import join, isfile
 
@@ -8,13 +8,13 @@ from util import *
 
 # Pool the a function across multiple inputs and wait for them to complete
 @contextmanager
-def poolcontext(*args, **kwargs):
-    pool = multiprocessing.Pool(*args, **kwargs)
+def poolcontext(num_proc):
+    pool = mp.Pool(num_proc)
     yield pool
     pool.terminate()
 
 # Get the histograms for the given logits and ground truth labels
-def hists_for_pixels(logits, gt, slices, args):
+def hists_for_pixels(logits, gt, slices, args, res):
 	# If we are not taking the softmax by slice, take the softmax once and be done with it
 	if not args.sm_by_slice:
 		sm = sm_of_logits(logits, start_idx=1, zero_pad=True)
@@ -64,7 +64,7 @@ def hists_for_pixels(logits, gt, slices, args):
 
 # Return the correct and count histograms given the hierarchy specified by slices
 def get_hists_for_idxs(idxs, slices, args):
-	nb = len(slices[0][0].acc_hist)
+	nb = len(slices[0][0].count_hist)
 	res = 1./nb
 
 	if args.load_to_memory:
@@ -93,7 +93,7 @@ def get_hists_for_idxs(idxs, slices, args):
 		gt = gt[:num_fg_pixels]
 
 		# Compute the histograms on these arrays -- it should be mostly vectorized
-		slices = hists_for_pixels(logits, gt, slices, args)
+		slices = hists_for_pixels(logits, gt, slices, args, res)
 	else:
 		# If we are computing the histograms on the fly, load each image individually and accumulate all the histograms
 		for idx in idxs:
@@ -104,7 +104,7 @@ def get_hists_for_idxs(idxs, slices, args):
 			logits = logits[fg_mask]
 			gt = gt[fg_mask]
 
-			slices = hists_for_pixels(logits, gt, slices, args)
+			slices = hists_for_pixels(logits, gt, slices, args, res)
 
 	return slices
 
@@ -128,7 +128,7 @@ parser.add_argument('--imset', dest='imset', type=str, default='val', help='The 
 parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='The number of processes to spawn to parallelize calibration.')
 parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 parser.add_argument('--dont_reset', dest='reset', action='store_false', help='Pass if you want to accumulate calibration histograms. Normally they are reset when this script is run.')
-parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_false', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
+parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
 parser.add_argument('--load_to_memory', dest='load_to_memory', action='store_true', help='Whether or not to store the batches into memory (you need a lot).')
 
 
@@ -144,11 +144,11 @@ if __name__ == '__main__':
 	# This way, if multiprocessing is used, all processes will be given approximately the same workload
 
 	idx_ordering = None
-	idx_ordering_fname = imset.lower() + '_ordered.txt'
+	idx_ordering_fname = args.imset.lower() + '_ordered.txt'
 
 	if not isfile(idx_ordering_fname):
 		from order_by_num_fg import order_imset_by_num_fg
-		idx_ordering = order_imset_by_num_fg(imset, save=True)
+		idx_ordering = order_imset_by_num_fg(args.imset, save=True)
 	else:
 		with open(idx_ordering_fname) as f:
 			idx_ordering = [int(idx) for idx in f.read().split('\n')]
@@ -160,10 +160,10 @@ if __name__ == '__main__':
 	param_batches = []
 
 	for procno in range(args.num_proc):
-		idx_batch = idx_ordering[prcno::args.num_proc]
-		idx_batches.append((idx_batch, slices.copy(), args))
+		idx_batch = idx_ordering[procno::args.num_proc]
+		param_batches.append((idx_batch, slices.copy(), args))
 
-	with poolcontext(num_processes=args.num_proc) as p:
+	with poolcontext(args.num_proc) as p:
 		proc_slices = p.map(get_hists_for_idxs_unpack, param_batches)
 
 	slices = aggregate_proc_hists(proc_slices, slices)
@@ -172,9 +172,7 @@ if __name__ == '__main__':
 
 	for slc in slices:
 		for node in slc:
-			fl_corr_hist = node.corr_hist.astype(np.float32)
-			fl_count_hist = node.count_hist.astype(np.float32)
-			node.acc_hist[:] = fl_corr_hist / np.maximum(1e-7, fl_count_hist)
+			node.get_acc_hist()
 
 	# Save the calibration histograms
 

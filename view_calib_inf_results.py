@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from util import read_slices
 from perform_calibrated_inference import calibrate_logits
 
-slices = read_slices('slices_sm.pkl')
+slices = read_slices('slices.pkl')
 
 import sys
 if len(sys.argv) > 1:

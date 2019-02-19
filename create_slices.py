@@ -1,11 +1,8 @@
 from hdf5storage import loadmat
-import pickle
-from collections import namedtuple
-import numpy as np
-from util import classes
+from util import *
 
 node_idx = 1
-res = .05
+res = .001
 nb = int(1./res)
 
 def create_node(labels, name):
@@ -15,12 +12,7 @@ def create_node(labels, name):
 	for label in labels:
 		terminals.append(classes.index(label))
 
-	clust =  Node(name, 
-				node_idx, 
-				terminals, 
-				np.zeros((nb), dtype=np.uint64), 
-				np.zeros((nb), dtype=np.uint64), 
-				np.zeros((nb), dtype=np.float32))
+	clust = Node(name, node_idx, terminals, nb)
 	node_idx += 1
 	return clust
 

@@ -1,15 +1,32 @@
 import pickle
-from collections import namedtuple
 import numpy as np
 from hdf5storage import loadmat
 from os.path import join
 
-Node = namedtuple('Node', 'name node_idx terminals corr_hist count_hist acc_hist')
+class Node(object):
+	def __init__(self, name, node_idx, terminals, nb):
+		self.name = name
+		self.node_idx = node_idx
+		self.terminals = terminals
+		self.corr_hist = np.zeros((nb), dtype=np.uint64)
+		self.count_hist = np.zeros_like(self.corr_hist)
+		
+	def get_acc_hist(self):
+		self.acc_hist = self.corr_hist.astype(np.float32) / np.maximum(1e-7, self.count_hist.astype(np.float32))
+		
+	def set_bin_edges(self, bin_edges):
+		self.bin_edges = bin_edges
+		
+	def reset_hists(self):
+		self.corr_hist = np.zeros_like(self.corr_hist, dtype=np.uint64)
+		self.count_hist = np.zeros_like(self.corr_hist)
+		self.acc_hist = None
+		
 
 ds_path = 'D:/datasets/processed/voc2012'
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
-nc = ds_info['num_classes']
-classes = ds_info['class_labels']
+classes = ds_info['class_labels'][:-1]
+nc = len(classes)-1
 img_size = 512
 
 
@@ -20,8 +37,7 @@ Loading Utilities
 '''
 
 def num_img_for(imset):
-	val_size = 350
-
+	val_size = 724
 	if imset == 'val':
 		return val_size
 	else:
@@ -30,7 +46,7 @@ def num_img_for(imset):
 def load_gt(imset, idx, reshape=False):
 	global ds_path
 
-	gt = loadmat(join(ds_path, imset, imset+'_%06d_pixeltruth.mat') % idx)['truth_img']
+	gt = loadmat(join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat') % idx)['truth_img']
 
 	if reshape:
 		gt = gt.ravel()
@@ -44,7 +60,7 @@ def load_logits(imset, idx, reshape=False):
 
 	if reshape:
 		global nc
-		lgts = lgts.reshape(-1, nc)
+		lgts = lgts.reshape(-1, nc+1)
 
 	return lgts
 
@@ -118,9 +134,7 @@ def read_slices(fname, reset=False):
 	if reset:
 		for slc in slices:
 			for node in slc:
-				node.corr_hist[:] = 0
-				node.count_hist[:] = 0
-				node.acc_hist[:] = 0
+				node.reset_hists()
 	return slices
 
 def save_slices(fname, slices):

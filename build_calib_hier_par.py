@@ -17,13 +17,7 @@ def poolcontext(*args, **kwargs):
 def hists_for_pixels(logits, gt, slices, args):
 	# If we are not taking the softmax by slice, take the softmax once and be done with it
 	if not args.sm_by_slice:
-		# Since we are ignoring background, take out the frist column of the logits
-		exp_logits = np.exp(logits[:,1:])
-		sm = exp_logits / np.maximum(np.sum(exp_logits, axis=-1)[...,np.newaxis], 1e-7)
-		
-		# However, the terminals in the hierarchy are 1-indexed so we need to pad with zeros to have the remap functions index correctly
-		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
-		sm = np.concatenate((zero_vec, sm), axis=1)
+		sm = sm_of_logits(logits, start_idx=1, zero_pad=True)
 
 
 	for i, slc in enumerate(slices):
@@ -35,8 +29,7 @@ def hists_for_pixels(logits, gt, slices, args):
 		# Otherwise, just remap the softmax previously computed
 		if args.sm_by_slice:
 			slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
-			slc_exp_logits = np.exp(slc_logits)
-			slc_sm = slc_exp_logits / np.maximum(slc_exp_logits.sum(-1)[:,np.newaxis], 1e-7)
+			slc_sm = sm_of_logits(slc_logits)
 		else:
 			slc_sm = np.array([remap_scores(sm_vec, slc) for sm_vec in sm])
 

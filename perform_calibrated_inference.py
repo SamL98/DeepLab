@@ -27,12 +27,7 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 
 	
 	if not sm_by_slice:
-		exp_logits = np.exp(logits[:,1:])
-		sm = exp_logits / np.maximum(np.sum(exp_logits, axis=-1)[...,np.newaxis], 1e-7)
-		
-		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
-		sm = np.concatenate((zero_vec, sm), axis=1)
-		scores = sm
+		scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
 	else:
 		scores = logits
 
@@ -52,8 +47,7 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 				slc_logits = remap_scores(score_vec, slc)
 
 				# Take the softmax of the remapped logits
-				slc_exp_logits = np.exp(slc_logits)
-				slc_sm = slc_exp_logits / np.maximum(np.sum(slc_exp_logits), 1e-7)
+				slc_sm = sm_of_logits(slc_logits)
 			else:
 				slc_sm = remap_scores(score_vec, slc)
 

@@ -58,7 +58,15 @@ Mask Processing Utilities
 def fg_mask_for(gt):
 	return ((gt > 0) & (gt < 255))
 
+def sm_of_logits(logits, start_idx=0, zero_pad=False):
+	exp_logits = np.exp(logits[:,start_idx:])
+	sm = exp_logits / np.maximum(1e-7, exp_logits.sum(-1)[:,np.newaxis])
+	
+	if zero_pad:
+		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]
+		sm = np.concatenate((zero_vec, sm), axis=1)
 
+	return sm
 
 
 '''

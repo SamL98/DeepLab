@@ -2,7 +2,7 @@ from hdf5storage import loadmat
 from util import *
 
 node_idx = 1
-res = .001
+res = .005
 nb = int(1./res)
 
 def create_node(labels, name):

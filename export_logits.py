@@ -28,7 +28,7 @@ OUTPUT_PATH = join(DS_PATH, 'Deeplab_Prediction', imset)
 
 INPT_FMT = imset.lower()+'_%06d_rgb.jpg' 
 PRED_MAT_NAME = 'pred_img'
-LGT_FMT = imset.lower()+'_%06d_logits.mat'
+LGT_FMT = 'val_%06d_logits.mat'
 LGT_MAT_NAME = 'logits_img'
 
 OUTPUT_TENSOR_NAME = 'ResizeBilinear_2:0' 
@@ -59,8 +59,10 @@ mapping = make_mapping(orig_labelmap, tree_labelmap)
 ckpt_graph = graph
 #with tf.Session(graph=graph) as sess: 
 if __name__ == '__main__':
-	for im_idx in range(1, num_img+1):
+	#for im_idx in range(1, num_img+1):
+	for im_idx in range(351, 725):
 		print('Performing inference on image %d' % im_idx)
+		sys.stdout.flush()
 	
 		inpt_im = np.array(Image.open(join(RGB_PATH, INPT_FMT % im_idx)), dtype=np.float32)
 		if inpt_im.shape[2] == 4:
@@ -103,7 +105,6 @@ if __name__ == '__main__':
 		
 		logits = np.squeeze(logits)
 		#softmax = resize_func(softmax, h, w).astype(np.float32)
-
 		
 		savemat(join(OUTPUT_PATH, LGT_FMT % im_idx),
 				{LGT_MAT_NAME: logits})

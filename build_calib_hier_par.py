@@ -113,7 +113,7 @@ def get_hists_for_idxs_unpack(params):
 
 def aggregate_proc_hists(proc_slices, slices):
 	for i, slc in enumerate(slices):
-		for j, node in enumeratae(slc):
+		for j, node in enumerate(slc):
 			for proc_slice in proc_slices:
 				node.corr_hist[:] += proc_slice[i][j].corr_hist[:]
 				node.count_hist[:] += proc_slice[i][j].count_hist[:]

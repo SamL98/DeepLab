@@ -27,8 +27,6 @@ ds_path = 'D:/datasets/processed/voc2012'
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 classes = ds_info['class_labels'][:-1]
 nc = len(classes)-1
-img_size = 512
-
 
 
 

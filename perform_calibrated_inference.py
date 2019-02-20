@@ -110,5 +110,7 @@ if __name__ == '__main__':
 
 	for idx in range(1, m+1):
 		print('Performing inference on logit no. %d' % idx)
+		sys.stdout.flush()
+		
 		predicted_mask = calibrate_logits(idx, imset, slices, nb)
 		savemat(pred_path % idx, {'pred_img': predicted_mask})

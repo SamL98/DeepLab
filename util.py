@@ -1,6 +1,6 @@
 import pickle
 import numpy as np
-from hdf5storage import loadmat
+from hdf5storage import loadmat, savemat
 from skimage.io import imread
 from os.path import join, isfile
 from os import environ

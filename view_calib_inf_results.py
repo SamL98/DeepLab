@@ -22,10 +22,13 @@ img = load_rgb(imset, idx)
 gt = load_gt(imset, idx, reshape=False)
 gt[gt==255] = 0
 
-dl_pred = load_dl_pred(imset, idx)
+#dl_pred = load_dl_pred(imset, idx)
+logits = load_logits(imset, idx)
+logits[...,0] = 0
+dl_pred = np.argmax(logits, axis=-1)
 dl_pred[(gt==0)] = 0
 
-conf_thresh = 0.75
+conf_thresh = 0.9
 if len(sys.argv) > 2:
 	conf_thresh = float(sys.argv[2])
 	
@@ -36,12 +39,12 @@ if calib_pred is None:
 
 print('GT Labels:')
 for lab in np.unique(gt):
-	print('%d: %s' % (lab, class_labels[lab]))
+	print('%d: %s' % (lab, classes[lab]))
 print('***')
 
 print('DL Labels:')
 for lab in np.unique(dl_pred):
-	print('%d: %s' % (lab, class_labels[lab]))
+	print('%d: %s' % (lab, classes[lab]))
 print('***')
 	
 print('CALIB Labels:')
@@ -57,6 +60,8 @@ for lab in np.unique(calib_pred):
 			break
 		base += len(slice)
 print('***')
+
+sys.stdout.flush()
 
 max_label = calib_pred.max()
 

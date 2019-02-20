@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 from hdf5storage import loadmat
+from skimage.io import imread
 from os.path import join
 from os import environ
 
@@ -25,8 +26,8 @@ class Node(object):
 		
 
 ds_path = 'D:/datasets/processed/voc2012'
-if 'DS_PATH' in os.environ:
-	ds_path = os.environ['DS_PATH']
+if 'DS_PATH' in environ:
+	ds_path = environ['DS_PATH']
 
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 classes = ds_info['class_labels'][:-1]
@@ -43,6 +44,11 @@ def num_img_for(imset):
 		return val_size
 	else:
 		return 1449-val_size
+		
+def load_rgb(imset, idx):
+	global ds_path
+	
+	return imread(join(ds_path, 'rgb', imset, imset+'_%06d_rgb.jpg' % idx))
 
 def load_gt(imset, idx, reshape=False):
 	global ds_path
@@ -64,6 +70,16 @@ def load_logits(imset, idx, reshape=False):
 		lgts = lgts.reshape(-1, nc+1)
 
 	return lgts
+	
+def load_dl_pred(imset, idx):
+	global ds_path
+	
+	return loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_prediction.mat') % idx)['pred_img']
+	
+def load_calib_pred(imset, idx):
+	global ds_path
+	
+	return loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred.mat') % idx)['pred_img']
 
 
 
@@ -75,8 +91,11 @@ def fg_mask_for(gt):
 	return ((gt > 0) & (gt < 255))
 
 def sm_of_logits(logits, start_idx=0, zero_pad=False):
-	exp_logits = np.exp(logits[:,start_idx:])
-	sm = exp_logits / np.maximum(1e-7, exp_logits.sum(-1)[:,np.newaxis])
+	exp_logits = np.exp(logits[...,start_idx:])
+	exp_logits_sum = exp_logits.sum(-1)
+	if len(logits.shape) > 1:
+		exp_logits_sum = exp_logits_sum[:,np.newaxis]
+	sm = exp_logits / np.maximum(1e-7, exp_logits_sum)
 	
 	if zero_pad:
 		zero_vec = np.zeros((len(sm)), dtype=sm.dtype)[:,np.newaxis]

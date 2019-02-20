@@ -94,6 +94,7 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 if __name__ == '__main__':
 	tree_fname = sys.argv[1]
 	slices = read_slices(tree_fname)
+	nb = len(slices[0][0].count_hist)
 
 	imset = 'test'
 	if len(sys.argv) > 2:

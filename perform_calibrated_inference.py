@@ -98,8 +98,10 @@ if __name__ == '__main__':
 	imset = 'test'
 	if len(sys.argv) > 2:
 		imset = sys.argv[2]
+		
+	pred_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred.mat')
 
-	for idx in range(1, m+1):
+	for idx in range(1, num_img_for(imset)+1):
 		print('Performing inference on logit no. %d' % idx)
 		sys.stdout.flush()
 

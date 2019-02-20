@@ -2,6 +2,7 @@ import pickle
 import numpy as np
 from hdf5storage import loadmat
 from os.path import join
+from os import environ
 
 class Node(object):
 	def __init__(self, name, node_idx, terminals, nb):
@@ -24,11 +25,13 @@ class Node(object):
 		
 
 ds_path = 'D:/datasets/processed/voc2012'
+if 'DS_PATH' in os.environ:
+	ds_path = os.environ['DS_PATH']
+
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 classes = ds_info['class_labels'][:-1]
 nc = len(classes)-1
 img_size = 512
-
 
 
 

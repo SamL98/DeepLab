@@ -11,8 +11,8 @@ class Node(object):
 		self.node_idx = node_idx
 		self.terminals = terminals
 
-		self.conf_file = join(data_dir, name + '_confs_' + id(self) + '.txt')
-		self.corr_file = join(data_dir, name + '_corr_' + id(self) + '.txt')
+		self.conf_file = join(data_dir, name + '_confs_' + str(id(self)) + '.txt')
+		self.corr_file = join(data_dir, name + '_corr_' + str(id(self)) + '.txt')
 
 	def append_confs(self, confs, correct_mask):
 		assert confs.shape[0] == correct_mask.shape[0]
@@ -33,6 +33,13 @@ class Node(object):
 	def set_as_main(self):
 		self.conf_file = join(data_dir, name + '_confs.txt')
 		self.corr_file = join(data_dir, name + '_corr.txt')
+		
+	def reset(self):
+		if isfile(self.conf_file):
+			os.remove(self.conf_file)
+		
+		if isfile(self.corr_file):
+			os.remove(self.corr_file)
 		
 
 ds_path = 'D:/datasets/processed/voc2012'
@@ -172,7 +179,7 @@ def read_slices(fname, reset=False):
 	if reset:
 		for slc in slices:
 			for node in slc:
-				node.reset_hists()
+				node.reset()
 	return slices
 
 def save_slices(fname, slices):

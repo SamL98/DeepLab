@@ -4,6 +4,7 @@
 /acc_hists/
 /__pycache__/
 /VOCdevkit/
+/calib_data/
 *.mat
 *.png
 *.zip

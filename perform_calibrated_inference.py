@@ -6,8 +6,8 @@ import sys
 from util import *
 
 def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, ds_factor=1, sm_by_slice=True):
+	nb = len(slices[0][0].count_hist)
 	res = 1./nb
-	
 	logits = load_logits(imset, idx, reshape=False)
 	
 	if ds_factor > 1:
@@ -99,18 +99,9 @@ if __name__ == '__main__':
 	if len(sys.argv) > 2:
 		imset = sys.argv[2]
 
-	ds_path = 'D:/datasets/processed/voc2012'
-	ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
-	#m = ds_info['num_'+imset]
-	m = 1449-350
-	nc = 20
-
-	pred_path = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred.mat')
-	nb = len(slices[0][0].acc_hist)
-
 	for idx in range(1, m+1):
 		print('Performing inference on logit no. %d' % idx)
 		sys.stdout.flush()
-		
+
 		predicted_mask = calibrate_logits(idx, imset, slices, nb)
 		savemat(pred_path % idx, {'pred_img': predicted_mask})

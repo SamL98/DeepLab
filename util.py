@@ -2,6 +2,7 @@ import pickle
 import numpy as np
 from hdf5storage import loadmat
 from os.path import join
+from os import environ
 
 class Node(object):
 	def __init__(self, name, node_idx, terminals, nb):
@@ -24,10 +25,12 @@ class Node(object):
 		
 
 ds_path = 'D:/datasets/processed/voc2012'
+if 'DS_PATH' in os.environ:
+	ds_path = os.environ['DS_PATH']
+
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 classes = ds_info['class_labels'][:-1]
 nc = len(classes)-1
-
 
 
 '''
@@ -102,7 +105,7 @@ def get_depth_of_label(pred_label, slices):
 		# Otherwise, iterate through the slices until the predicted label is within the current slice and return that depth.
 		total_nodes = 0
 		for i, slc in enumerate(slices):
-			if pred_label > len(slc)+total_nodes:
+			if pred_label > len(slc)+total_nodes+1:
 				total_nodes += len(slc)
 				continue
 			return len(slices)-i			
@@ -112,7 +115,7 @@ def is_in_gt_path(pred_label, gt_label, slices):
 	for slc in slices:
 		# Accumulate the total nodes before the current slice so that when gt_label is remapped
 		# to the local indices of the slice, that base is added to test for equality with the predicted label.
-		if pred_label > len(slc)+total_nodes:
+		if pred_label > len(slc)+total_nodes+1:
 			total_nodes += len(slc)
 			continue
 

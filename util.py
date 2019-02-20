@@ -81,7 +81,11 @@ def load_calib_pred(imset, idx):
 	
 	return loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred.mat') % idx)['pred_img']
 
-
+def save_calib_pred(imset, idx, pred, conf):
+	global ds_path
+	
+	savemat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf), {'pred_img': pred)
+	
 
 '''
 Mask Processing Utilities

@@ -13,12 +13,11 @@ def poolcontext(num_proc):
     yield pool
     pool.terminate()
 
-# Get the histograms for the given logits and ground truth labels
-def hists_for_pixels(logits, gt, slices, args, res, nb):
+# Get the confograms for the given logits and ground truth labels
+def confs_for_pixels(logits, gt, slices, args):
 	# If we are not taking the softmax by slice, take the softmax once and be done with it
 	if not args.sm_by_slice:
 		sm = sm_of_logits(logits, start_idx=1, zero_pad=True)
-
 
 	for i, slc in enumerate(slices):
 		# Remap the ground truth to the local labels of the current slice
@@ -35,7 +34,7 @@ def hists_for_pixels(logits, gt, slices, args, res, nb):
 
 			
 		for j, node in enumerate(slc):
-			# Since we are measuring precision in the calibration histograms, mask the ground truth and softmax by where the current node is softmax
+			# Since we are measuring precision in the calibration confograms, mask the ground truth and softmax by where the current node is softmax
 			pred_labels = np.argmax(slc_sm, axis=-1)
 			argmax_mask = pred_labels == j
 
@@ -44,29 +43,15 @@ def hists_for_pixels(logits, gt, slices, args, res, nb):
 
 			# Because of the previous mask, the j-th softmax value will always be the max
 			sm_conf = slc_sm_masked[:,j]
-			bins = np.floor(sm_conf/res).astype(np.uint8)
 
-			# If sm_conf happend to be 1, then the bin will be nb which will cause an IndexError
-			bins = np.minimum(bins, nb-1)
-
-			for binno in np.unique(bins):
-				# Mask the bin vector and ground truth by the current bin number
-				bin_mask = bins == binno
-				
-				# We are already assured that j was predicted so the corre_hist is accumumlated by how many times we were right
-				node.corr_hist[binno] += (slc_gt_masked[bin_mask] == j).sum()
-
-				# The count hist is simply how many times this bin was measured
-				node.count_hist[binno] += bin_mask.sum()
+			# Save the confidence of each pixel as well as whether it was correct to disk
+			node.append_confs(sm_conf, slc_gt_masked == j)
 
 	return slices
 
 
-# Return the correct and count histograms given the hierarchy specified by slices
-def get_hists_for_idxs(idxs, slices, args):
-	nb = len(slices[0][0].count_hist)
-	res = 1./nb
-
+# Return the correct and count confograms given the hierarchy specified by slices
+def get_confs_for_idxs(idxs, slices, args):
 	if args.load_to_memory:
 		# If we are loading all of the pixels into memory, creating arrays for the logits and ground truth
 		# labels that have the capacity of as many pixels there are in the image set
@@ -92,10 +77,10 @@ def get_hists_for_idxs(idxs, slices, args):
 		logits = logits[:num_fg_pixels]
 		gt = gt[:num_fg_pixels]
 
-		# Compute the histograms on these arrays -- it should be mostly vectorized
-		slices = hists_for_pixels(logits, gt, slices, args, res, nb)
+		# Compute the confograms on these arrays -- it should be mostly vectorized
+		slices = confs_for_pixels(logits, gt, slices, args)
 	else:
-		# If we are computing the histograms on the fly, load each image individually and accumulate all the histograms
+		# If we are computing the confograms on the fly, load each image individually and accumulate all the confograms
 		for idx in idxs:
 			logits = load_logits(args.imset, idx, reshape=True)
 			gt = load_gt(args.imset, idx, reshape=True)
@@ -104,19 +89,30 @@ def get_hists_for_idxs(idxs, slices, args):
 			logits = logits[fg_mask]
 			gt = gt[fg_mask]
 
-			slices = hists_for_pixels(logits, gt, slices, args, res, nb)
+			slices = confs_for_pixels(logits, gt, slices, args)
 
 	return slices
 
-def get_hists_for_idxs_unpack(params):
-	return get_hists_for_idxs(*params)
+def get_confs_for_idxs_unpack(params):
+	return get_confs_for_idxs(*params)
 
-def aggregate_proc_hists(proc_slices, slices):
+def aggregate_proc_confs(proc_slices, slices):
 	for i, slc in enumerate(slices):
 		for j, node in enumerate(slc):
+			conf_f = open('calib_data/%s_confs.txt' % node.name)
+			corr_f = open('calib_data/%s_corr.txt' % node.name)
+
 			for proc_slice in proc_slices:
-				node.corr_hist[:] += proc_slice[i][j].corr_hist[:]
-				node.count_hist[:] += proc_slice[i][j].count_hist[:]
+				conf, corr_mask = proc_slice[i][j].get_file_contents()
+				proc_slice.remove_tmp_files()
+
+				np.savetxt(conf_f, conf)
+				np.savetxt(corr_f, corr_mask)
+
+			conf_f.close()
+			corr_f.close()
+
+			node.set_as_main()
 
 	return slices
 
@@ -124,10 +120,10 @@ def aggregate_proc_hists(proc_slices, slices):
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Build the calibration hierarchy using multiprocessing.')
 parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
-parser.add_argument('--imset', dest='imset', type=str, default='val', help='The image set to build the calibration histograms from. Either val or test')
+parser.add_argument('--imset', dest='imset', type=str, default='val', help='The image set to build the calibration confograms from. Either val or test')
 parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='The number of processes to spawn to parallelize calibration.')
 parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
-parser.add_argument('--dont_reset', dest='reset', action='store_false', help='Pass if you want to accumulate calibration histograms. Normally they are reset when this script is run.')
+parser.add_argument('--dont_reset', dest='reset', action='store_false', help='Pass if you want to accumulate calibration confograms. Normally they are reset when this script is run.')
 parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
 parser.add_argument('--load_to_memory', dest='load_to_memory', action='store_true', help='Whether or not to store the batches into memory (you need a lot).')
 
@@ -164,17 +160,11 @@ if __name__ == '__main__':
 		param_batches.append((idx_batch, slices.copy(), args))
 
 	with poolcontext(args.num_proc) as p:
-		proc_slices = p.map(get_hists_for_idxs_unpack, param_batches)
+		proc_slices = p.map(get_confs_for_idxs_unpack, param_batches)
 
-	slices = aggregate_proc_hists(proc_slices, slices)
+	slices = aggregate_proc_confs(proc_slices, slices)
 
-	# Finally, set the accuracy (precision) histograms based off the correct and count histograms
-
-	for slc in slices:
-		for node in slc:
-			node.get_acc_hist()
-
-	# Save the calibration histograms
+	# Save the calibration data
 
 	output_fname = args.output_file
 	if output_fname is None:

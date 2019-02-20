@@ -3,31 +3,41 @@ import numpy as np
 from hdf5storage import loadmat, savemat
 from skimage.io import imread
 from os.path import join, isfile
-from os import environ
+import os
 
 class Node(object):
-	def __init__(self, name, node_idx, terminals, nb):
+	def __init__(self, name, node_idx, terminals, data_dir='calib_data'):
 		self.name = name
 		self.node_idx = node_idx
 		self.terminals = terminals
-		self.corr_hist = np.zeros((nb), dtype=np.uint64)
-		self.count_hist = np.zeros_like(self.corr_hist)
-		
-	def get_acc_hist(self):
-		self.acc_hist = self.corr_hist.astype(np.float32) / np.maximum(1e-7, self.count_hist.astype(np.float32))
-		
-	def set_bin_edges(self, bin_edges):
-		self.bin_edges = bin_edges
-		
-	def reset_hists(self):
-		self.corr_hist = np.zeros_like(self.corr_hist, dtype=np.uint64)
-		self.count_hist = np.zeros_like(self.corr_hist)
-		self.acc_hist = None
+
+		self.conf_file = join(data_dir, name + '_confs_' + id(self) + '.txt')
+		self.corr_file = join(data_dir, name + '_corr_' + id(self) + '.txt')
+
+	def append_confs(self, confs, correct_mask):
+		assert confs.shape[0] == correct_mask.shape[0]
+
+		with open(self.conf_file, 'a') as f:
+			np.savetxt(f, confs)
+
+		with open(self.corr_file, 'a') as f:
+			np.savetxt(f, correct_mask)
+
+	def get_file_contents(self):
+		return np.genfromtxt(self.conf_file), np.genfromtxt(self.corr_file).astype(np.bool)
+
+	def remove_tmp_files(self):
+		os.remove(self.conf_file)
+		os.remove(self.corr_file)
+
+	def set_as_main(self):
+		self.conf_file = join(data_dir, name + '_confs.txt')
+		self.corr_file = join(data_dir, name + '_corr.txt')
 		
 
 ds_path = 'D:/datasets/processed/voc2012'
-if 'DS_PATH' in environ:
-	ds_path = environ['DS_PATH']
+if 'DS_PATH' in os.environ:
+	ds_path = os.environ['DS_PATH']
 
 ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
 classes = ds_info['class_labels'][:-1]

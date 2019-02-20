@@ -12,7 +12,7 @@ def create_node(labels, name):
 	for label in labels:
 		terminals.append(classes.index(label))
 
-	clust = Node(name, node_idx, terminals, nb)
+	clust = Node(name, node_idx, terminals)
 	node_idx += 1
 	return clust
 

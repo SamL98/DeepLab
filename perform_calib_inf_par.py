@@ -13,7 +13,7 @@ def poolcontext(num_proc):
     yield pool
     pool.terminate()
 
-def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, save, sm_by_slice=True):
+def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, sm_by_slice=True):
 	res = 1./nb
 	
 	logits = load_logits(imset, idx, reshape=False)

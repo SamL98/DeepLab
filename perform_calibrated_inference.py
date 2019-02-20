@@ -5,7 +5,7 @@ import sys
 
 from util import *
 
-def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, ds_factor=1, sm_by_slice=True):
+def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, ret_conf=False, ds_factor=1, sm_by_slice=True):
 	nb = len(slices[0][0].count_hist)
 	res = 1./nb
 	logits = load_logits(imset, idx, reshape=False)
@@ -86,6 +86,9 @@ def calibrate_logits(idx, imset, slices, nb, conf_thresh=0.75, ret_conf=False, d
 							order=0,
 							preserve_range=True).astype(np.uint8)
 		
+	if save:
+		save_calib_pred(imset, idx, predicted_mask, conf_thresh)
+	
 	if ret_conf:
 		return predicted_mask, conf_mask
 	return predicted_mask

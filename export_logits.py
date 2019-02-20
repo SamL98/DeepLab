@@ -5,6 +5,7 @@ from skimage.transform import resize
 from hdf5storage import loadmat, savemat
 from os.path import join
 
+from util import *
 from convert_to_tree_labels import make_mapping, convert_terminal_img_to_tree_labels as convert_to_tree_labelmap
 
 def resize_func(arr, h, w):
@@ -46,10 +47,7 @@ with tf.Graph().as_default() as graph:
 	
 ds_info = loadmat(join(DS_PATH, 'dataset_info.mat'))
 
-if imset.lower() == 'val':
-	num_img = 350
-else:
-	num_img = 1099
+num_img = num_img_for(imset.lower())
 	
 orig_labelmap = ds_info['class_labels']
 orig_labelmap[orig_labelmap.index('potted plant')] = 'pottedplant'
@@ -59,8 +57,7 @@ mapping = make_mapping(orig_labelmap, tree_labelmap)
 ckpt_graph = graph
 #with tf.Session(graph=graph) as sess: 
 if __name__ == '__main__':
-	#for im_idx in range(1, num_img+1):
-	for im_idx in range(351, 725):
+	for im_idx in range(1, num_img+1):
 		print('Performing inference on image %d' % im_idx)
 		sys.stdout.flush()
 	

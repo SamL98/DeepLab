@@ -28,10 +28,11 @@ dl_pred[(gt==0)] = 0
 conf_thresh = 0.75
 if len(sys.argv) > 2:
 	conf_thresh = float(sys.argv[2])
-	downsample_factor = 1
-	calib_pred = calibrate_logits(idx, imset, slices, len(slices[0][0].acc_hist), conf_thresh=conf_thresh, ret_conf=False, ds_factor=downsample_factor, sm_by_slice=False)
-else:
-	calib_pred = load_calib_pred(imset, idx)
+	
+
+calib_pred = load_calib_pred(imset, idx, conf_thresh)
+if calib_pred is None:
+	calib_pred = calibrate_logits(idx, imset, slices, len(slices[0][0].acc_hist), True, conf_thresh=conf_thresh, sm_by_slice=False)
 
 print('GT Labels:')
 for lab in np.unique(gt):

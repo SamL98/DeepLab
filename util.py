@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 from hdf5storage import loadmat
 from skimage.io import imread
-from os.path import join
+from os.path import join, isfile
 from os import environ
 
 class Node(object):
@@ -76,15 +76,19 @@ def load_dl_pred(imset, idx):
 	
 	return loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_prediction.mat') % idx)['pred_img']
 	
-def load_calib_pred(imset, idx):
+def load_calib_pred(imset, idx, conf):
 	global ds_path
 	
-	return loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred.mat') % idx)['pred_img']
+	fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf)
+	if not isfile(fname):
+		return None
+		
+	return loadmat(fname)['pred_img']
 
 def save_calib_pred(imset, idx, pred, conf):
 	global ds_path
 	
-	savemat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf), {'pred_img': pred)
+	savemat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf), {'pred_img': pred})
 	
 
 '''

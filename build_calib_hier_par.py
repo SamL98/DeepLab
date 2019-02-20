@@ -99,8 +99,8 @@ def get_confs_for_idxs_unpack(params):
 def aggregate_proc_confs(proc_slices, slices):
 	for i, slc in enumerate(slices):
 		for j, node in enumerate(slc):
-			conf_f = open('calib_data/%s_confs.txt' % node.name)
-			corr_f = open('calib_data/%s_corr.txt' % node.name)
+			conf_f = open('calib_data/%s_confs.txt' % node.name, 'w')
+			corr_f = open('calib_data/%s_corr.txt' % node.name, 'w')
 
 			for proc_slice in proc_slices:
 				conf, corr_mask = proc_slice[i][j].get_file_contents()

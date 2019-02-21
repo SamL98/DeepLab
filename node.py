@@ -61,17 +61,18 @@ class Node(object):
 		confs = np.genfromtxt(self.conf_file)
 		correct_mask = np.genfromtxt(self.corr_file).astype(np.bool)
 
-		conf_hist, bins = np.histogram(confs, nb)
-		cdf = np.cumsum(conf_hist)
+		cdf = np.cumsum(confs)
+		cdf /= np.maximum(1e-7, cdf[-1])
 
-		confs_equa = np.interp(confs, bins[:-1], cdf/np.maximum(1e-7, cdf[-1]))
-		_, bins = np.histogram(confs_equa, nb)
-		self.bin_edges = bins[:]
+		cdf_intervals = np.linspace(0, 1, num=nb)
+
+		bin_edges = np.interp(cdf_intervals, cdf, np.linspace(0, 1, num=confs.shape[0]))
+		self.bin_edges = bin_edges[:]
 
 		self.bin_file = join(self.data_dir, '%s_bin_edges.txt' % self.uid)
 		np.savetxt(self.bin_file, self.bin_edges)
 
-		corr_hist = np.zeros((len(bins)-1), dtype=np.float32)
+		corr_hist = np.zeros((nb), dtype=np.float32)
 		count_hist = np.zeros_like(corr_hist)
 
 		for i, bin_edge in enumerate(self.bin_edges[1:]):

@@ -64,9 +64,9 @@ class Node(object):
 		cdf = np.cumsum(confs)
 		cdf /= np.maximum(1e-7, cdf[-1])
 
-		cdf_intervals = np.linspace(0, 1, num=nb)
+		cdf_intervals = np.linspace(0, 1, num=nb+1)
 
-		bin_edges = np.interp(cdf_intervals, cdf, np.linspace(0, 1, num=confs.shape[0]))
+		bin_edges = np.interp(cdf_intervals, cdfs, np.linspace(0, 1, num=confs.shape[0]))
 		self.bin_edges = bin_edges[:]
 
 		self.bin_file = join(self.data_dir, '%s_bin_edges.txt' % self.uid)

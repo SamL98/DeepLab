@@ -2,7 +2,8 @@ import numpy as np
 import multiprocessing as mp
 from contextlib import contextmanager
 from hdf5storage import loadmat, savemat
-from os.path import join, isfile
+from os.path import join, isfile, isdir
+import os
 
 from util import *
 
@@ -52,67 +53,48 @@ def confs_for_pixels(logits, gt, slices, args):
 
 # Return the correct and count confograms given the hierarchy specified by slices
 def get_confs_for_idxs(idxs, slices, args):
-	if args.load_to_memory:
-		# If we are loading all of the pixels into memory, creating arrays for the logits and ground truth
-		# labels that have the capacity of as many pixels there are in the image set
-		num_pixel = len(idxs) * img_size**2
-		logits = np.zeros((num_pixel, nc), dtype=np.float32)
-		gt = np.zeros((num_pixel), dtype=np.uint8)
+	for slc in slices:
+		for node in slc:
+			node.__init__(node.name, node.node_idx, node.terminals, data_dir=args.data_dir)
 
-		# Load all of the logits and labels for each image into the buffers
-		num_fg_pixels = 0
-		for idx in idxs:
-			im_logits = load_logits(args.imset, idx, reshape=True)
-			im_gt = load_gt(args.imset, idx, reshape=True)
+	# If we are computing the confograms on the fly, load each image individually and accumulate all the confograms
+	for idx in idxs:
+		logits = load_logits(args.imset, idx, reshape=True)
+		gt = load_gt(args.imset, idx, reshape=True)
 
-			fg_mask = fg_mask_for(gt)
-			im_logits = im_logits[fg_mask]
-			im_gt = im_gt[fg_mask]
+		fg_mask = fg_mask_for(gt)
+		logits = logits[fg_mask]
+		gt = gt[fg_mask]
 
-			logits[num_fg_pixels:num_fg_pixels+len(im_logits)] = im_logits[:]
-			gt[num_fg_pixels:num_fg_pixels+len(im_gt)] = im_gt[:]
-			num_fg_pixels += fg_mask.sum()
-
-		# Only keep the pixels that we stored into the buffer
-		logits = logits[:num_fg_pixels]
-		gt = gt[:num_fg_pixels]
-
-		# Compute the confograms on these arrays -- it should be mostly vectorized
 		slices = confs_for_pixels(logits, gt, slices, args)
-	else:
-		# If we are computing the confograms on the fly, load each image individually and accumulate all the confograms
-		for idx in idxs:
-			logits = load_logits(args.imset, idx, reshape=True)
-			gt = load_gt(args.imset, idx, reshape=True)
-
-			fg_mask = fg_mask_for(gt)
-			logits = logits[fg_mask]
-			gt = gt[fg_mask]
-
-			slices = confs_for_pixels(logits, gt, slices, args)
 
 	return slices
 
 def get_confs_for_idxs_unpack(params):
 	return get_confs_for_idxs(*params)
 
-def aggregate_proc_confs(proc_slices, slices):
+def aggregate_proc_confs(proc_slices, slices, data_dir):
 	for i, slc in enumerate(slices):
 		for j, node in enumerate(slc):
-			conf_f = open('calib_data/%s_confs.txt' % node.name)
-			corr_f = open('calib_data/%s_corr.txt' % node.name)
+			node.__init__(node.name, node.node_idx, node.terminals, data_dir=args.data_dir, is_main=True)
+		
+			conf_f = open(data_dir + '/%s_confs.txt' % node.name, 'w')
+			corr_f = open(data_dir + '/%s_corr.txt' % node.name, 'w')
 
 			for proc_slice in proc_slices:
-				conf, corr_mask = proc_slice[i][j].get_file_contents()
-				proc_slice.remove_tmp_files()
+				proc_node = proc_slice[i][j]
+				
+				conf, corr_mask = proc_node.get_file_contents()
+				proc_node.reset()
+				
+				if conf is None:
+					continue
 
 				np.savetxt(conf_f, conf)
 				np.savetxt(corr_f, corr_mask)
 
 			conf_f.close()
 			corr_f.close()
-
-			node.set_as_main()
 
 	return slices
 
@@ -125,11 +107,15 @@ parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='Th
 parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 parser.add_argument('--dont_reset', dest='reset', action='store_false', help='Pass if you want to accumulate calibration confograms. Normally they are reset when this script is run.')
 parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
-parser.add_argument('--load_to_memory', dest='load_to_memory', action='store_true', help='Whether or not to store the batches into memory (you need a lot).')
+parser.add_argument('--data_dir', dest='data_dir', type=str, default='calib_data', help='The data to store confidences in')
+parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the calibration script. Takes the first 2*num_proc from the imset.')
 
 
 if __name__ == '__main__':
 	args = parser.parse_args()
+	
+	if not isdir(args.data_dir):
+		os.mkdir(args.data_dir)
 
 	# Load the slices from the specified file
 
@@ -148,7 +134,10 @@ if __name__ == '__main__':
 	else:
 		with open(idx_ordering_fname) as f:
 			idx_ordering = [int(idx) for idx in f.read().split('\n')]
-	
+			
+			
+	if args.test:
+		idx_ordering = idx_ordering[:args.num_proc]
 
 	# Split the indexes up between processed to try and spread the work evenly
 
@@ -162,7 +151,7 @@ if __name__ == '__main__':
 	with poolcontext(args.num_proc) as p:
 		proc_slices = p.map(get_confs_for_idxs_unpack, param_batches)
 
-	slices = aggregate_proc_confs(proc_slices, slices)
+	slices = aggregate_proc_confs(proc_slices, slices, args.data_dir)
 
 	# Save the calibration data
 
@@ -171,3 +160,6 @@ if __name__ == '__main__':
 		output_fname = args.slice_file
 
 	save_slices(output_fname, slices)
+	
+	if args.test:
+		os.remove(args.data_dir)

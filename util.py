@@ -2,17 +2,22 @@ import pickle
 import numpy as np
 from hdf5storage import loadmat, savemat
 from skimage.io import imread
-from os.path import join, isfile
+from os.path import join, isfile, getsize
 import os
 
 class Node(object):
-	def __init__(self, name, node_idx, terminals, data_dir='calib_data'):
+	def __init__(self, name, node_idx, terminals, data_dir='calib_data', is_main=False):
 		self.name = name
 		self.node_idx = node_idx
 		self.terminals = terminals
+		self.data_dir = data_dir
 
-		self.conf_file = join(data_dir, name + '_confs_' + str(id(self)) + '.txt')
-		self.corr_file = join(data_dir, name + '_corr_' + str(id(self)) + '.txt')
+		if is_main:
+			pid = ''
+		else:
+			pid = '_' + str(os.getpid())
+		self.conf_file = join(self.data_dir, self.name + '_confs' + pid + '.txt')
+		self.corr_file = join(self.data_dir, self.name + '_corr' + pid + '.txt')
 
 	def append_confs(self, confs, correct_mask):
 		assert confs.shape[0] == correct_mask.shape[0]
@@ -24,15 +29,13 @@ class Node(object):
 			np.savetxt(f, correct_mask)
 
 	def get_file_contents(self):
+		if not (isfile(self.conf_file) and isfile(self.corr_file)):
+			return None, None
+			
+		if getsize(self.conf_file) == 0 or getsize(self.corr_file) == 0:
+			return None, None
+			
 		return np.genfromtxt(self.conf_file), np.genfromtxt(self.corr_file).astype(np.bool)
-
-	def remove_tmp_files(self):
-		os.remove(self.conf_file)
-		os.remove(self.corr_file)
-
-	def set_as_main(self):
-		self.conf_file = join(data_dir, name + '_confs.txt')
-		self.corr_file = join(data_dir, name + '_corr.txt')
 		
 	def reset(self):
 		if isfile(self.conf_file):
@@ -116,10 +119,15 @@ def fg_mask_for(gt):
 	return ((gt > 0) & (gt < 255))
 
 def sm_of_logits(logits, start_idx=0, zero_pad=False):
-	exp_logits = np.exp(logits[...,start_idx:])
+	logits = logits[...,start_idx:]
+	logits -= logits.max(-1)
+	
+	exp_logits = np.exp(logits)
+	
 	exp_logits_sum = exp_logits.sum(-1)
 	if len(logits.shape) > 1:
 		exp_logits_sum = exp_logits_sum[:,np.newaxis]
+		
 	sm = exp_logits / np.maximum(1e-7, exp_logits_sum)
 	
 	if zero_pad:

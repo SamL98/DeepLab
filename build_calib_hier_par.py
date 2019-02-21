@@ -78,8 +78,8 @@ def aggregate_proc_confs(proc_slices, slices, data_dir):
 		for j, node in enumerate(slc):
 			node.__init__(node.name, node.node_idx, node.terminals, data_dir=args.data_dir, is_main=True)
 		
-			conf_f = open(data_dir + '/%s_confs.txt' % node.name, 'w')
-			corr_f = open(data_dir + '/%s_corr.txt' % node.name, 'w')
+			conf_f = open(node.conf_file, 'a')
+			corr_f = open(node.corr_file, 'a')
 
 			for proc_slice in proc_slices:
 				proc_node = proc_slice[i][j]

@@ -4,6 +4,7 @@ import numpy as np
 
 class Node(object):
 	def __init__(self, name, node_idx, terminals, data_dir='calib_data', is_main=False):
+		self.uid = '%d-%s' % (node_idx, name)
 		self.name = name
 		self.node_idx = node_idx
 		self.terminals = terminals
@@ -13,16 +14,16 @@ class Node(object):
 			pid = ''
 		else:
 			pid = '_' + str(os.getpid())
-		self.conf_file = join(self.data_dir, self.name + '_confs' + pid + '.txt')
-		self.corr_file = join(self.data_dir, self.name + '_corr' + pid + '.txt')
+		self.conf_file = join(self.data_dir, '%s_confs%s.txt' % (self.uid, pid))
+		self.corr_file = join(self.data_dir, '%s_corr%s.txt' % (self.uid, pid))
 
 		if is_main:
-			bin_edge_fname = join(self.data_dir, self.name + '_bin_edges.txt')
+			bin_edge_fname = join(self.data_dir, '%s_bin_edges.txt' % self.uid)
 			if isfile(bin_edge_fname):
 				self.bin_file = bin_edge_fname
 				self.bin_edges = np.genfromtxt(bin_edge_fname)
 
-			acc_hist_fname = join(self.data_dir, self.name + '_acc_hist.txt')
+			acc_hist_fname = join(self.data_dir, '%s_acc_hist.txt' % self.uid)
 			if isfile(acc_hist_fname):
 				self.acc_file = acc_hist_fname
 				self.acc_hist = np.genfromtxt(acc_hist_fname)
@@ -49,13 +50,13 @@ class Node(object):
 		correct_mask = np.genfromtxt(self.corr_file).astype(np.bool)
 
 		conf_hist, bins = np.histogram(confs, nb)
-		cdf = np.cumsum(confs)
+		cdf = np.cumsum(conf_hist)
 
 		confs_equa = np.interp(confs, bins[:-1], cdf/cdf[-1])
 		_, bins = np.histogram(confs_equa, nb)
 		self.bin_edges = bins[:]
 
-		self.bin_file = join(self.data_dir, self.name + '_bin_edges.txt')
+		self.bin_file = join(self.data_dir, '%s_bin_edges.txt' % self.uid)
 		np.savetxt(self.bin_file, self.bin_edges)
 
 		corr_hist = np.zeros((len(bins)-1), dtype=np.float32)
@@ -72,7 +73,7 @@ class Node(object):
 
 		self.acc_hist = corr_hist.astype(np.float32) / np.maximum(1e-7, count_hist.astype(np.float32))
 
-		self.acc_file = join(self.data_dir, self.name + '_acc_hist.txt')
+		self.acc_file = join(self.data_dir, '%s_acc_hist.txt' % self.uid)
 		np.savetxt(self.acc_file, self.acc_hist)
 
 

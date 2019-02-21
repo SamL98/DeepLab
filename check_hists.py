@@ -11,10 +11,10 @@ if __name__ == '__main__':
 
     slices = read_slices('slices.pkl')
 
-    for slc in slices:
+    for i, slc in enumerate(slices):
         slc_fg_pix = 0
 
         for node in slc:
             slc_fg_pix += node.get_fg_count()
 
-        assert slc_fg_pix == num_fg_pix
+        assert slc_fg_pix == num_fg_pix, 'Slice %d should have %d pixels but has %d' % (i, num_fg_pix, slc_fg_pix)

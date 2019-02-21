@@ -55,8 +55,8 @@ class Node(object):
 
 			
 	def generate_equalized_acc_hist(self, nb):
-		assert isfile(self.conf_file)
-		assert isfile(self.corr_file)
+		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
+		assert isfile(self.corr_file), '%s corr file does not exist' % self.uid
 
 		confs = np.genfromtxt(self.conf_file)
 		correct_mask = np.genfromtxt(self.corr_file).astype(np.bool)

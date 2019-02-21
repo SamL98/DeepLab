@@ -148,8 +148,12 @@ def fg_mask_for(gt):
 
 def sm_of_logits(logits, start_idx=0, zero_pad=False):
 	logits = logits[...,start_idx:]
-	logits -= logits.max(-1)
 	
+	logits_max = logits.max(-1)
+	if len(logits.shape) > 1:
+		logits_max = logits_max[:,np.newaxis]
+	
+	logits -= logits_max
 	exp_logits = np.exp(logits)
 	
 	exp_logits_sum = exp_logits.sum(-1)

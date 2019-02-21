@@ -18,3 +18,5 @@ if __name__ == '__main__':
             slc_fg_pix += node.get_fg_count()
 
         assert slc_fg_pix == num_fg_pix, 'Slice %d should have %d pixels but has %d' % (i, num_fg_pix, slc_fg_pix)
+		
+    print('Slice foreground pixel check passed!')

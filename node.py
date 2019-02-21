@@ -29,8 +29,10 @@ class Node(object):
 				self.acc_hist = np.genfromtxt(acc_hist_fname)
 
 	def get_fg_count(self):
-		assert isfile(self.corr_file) and getsize(self.corr_file) > 0
+		assert isfile(self.corr_file)
 
+		if getsize(self.corr_file) == 0:
+			return 0
 		return np.genfromtxt(self.corr_file).shape[0]
 
 	def append_confs(self, confs, correct_mask):

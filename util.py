@@ -153,6 +153,7 @@ def read_slices(fname, reset=False):
 		for slc in slices:
 			for node in slc:
 				node.reset()
+				node.__init__(node.name, node.node_idx, node.terminals, is_main=True)
 	return slices
 
 def save_slices(fname, slices):

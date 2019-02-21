@@ -16,6 +16,22 @@ class Node(object):
 		self.conf_file = join(self.data_dir, self.name + '_confs' + pid + '.txt')
 		self.corr_file = join(self.data_dir, self.name + '_corr' + pid + '.txt')
 
+        if is_main:
+            bin_edge_fname = join(self.data_dir, self.name + '_bin_edges.txt')
+            if isfile(bin_edge_fname):
+                self.bin_file = bin_edge_fname
+                self.bin_edges = np.genfromtxt(bin_edge_fname)
+
+            acc_hist_fname = join(self.data_dir, self.name + '_acc_hist.txt')
+            if isfile(acc_hist_fname):
+                self.acc_file = acc_hist_fname
+                self.acc_hist = np.genfromtxt(acc_hist_fname)
+
+    def get_fg_count(self):
+        assert isfile(self.corr_file) and getsize(self.corr_file) > 0
+
+        return np.genfromtxt(self.corr_file).shape[0]
+
 	def append_confs(self, confs, correct_mask):
 		assert confs.shape[0] == correct_mask.shape[0]
 
@@ -39,6 +55,9 @@ class Node(object):
 		_, bins = np.histogram(confs_equa, nb)
 		self.bin_edges = bins[:]
 
+        self.bin_file = join(self.data_dir, self.name + '_bin_edges.txt')
+        np.savetxt(self.bin_file, self.bin_edges)
+
 		corr_hist = np.zeros((len(bins)-1), dtype=np.float32)
 		count_hist = np.zeros_like(corr_hist)
 
@@ -52,6 +71,10 @@ class Node(object):
 			count_hist[i] += num_pix
 
 		self.acc_hist = corr_hist.astype(np.float32) / np.maximum(1e-7, count_hist.astype(np.float32))
+
+        self.acc_file = join(self.data_dir, self.name + '_acc_hist.txt')
+        np.savetxt(self.acc_file, self.acc_hist)
+
 
 	def get_file_contents(self):
 		if not (isfile(self.conf_file) and isfile(self.corr_file)):

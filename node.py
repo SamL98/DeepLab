@@ -67,7 +67,10 @@ class Node(object):
 		if len(confs) == 0:
 			return
 
-		confs = np.sort(confs)
+		conf_asort = np.argsort(confs).ravel()
+		confs = confs[conf_asort]
+		correct_mask = correct_mask[conf_asort]
+		
 		cdf = np.cumsum(confs)
 		cdf /= np.maximum(1e-7, cdf[-1])
 

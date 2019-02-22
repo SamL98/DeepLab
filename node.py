@@ -67,6 +67,7 @@ class Node(object):
 		if len(confs) == 0:
 			return
 
+		confs = np.sort(confs)
 		cdf = np.cumsum(confs)
 		cdf /= np.maximum(1e-7, cdf[-1])
 

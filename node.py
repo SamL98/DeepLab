@@ -66,17 +66,17 @@ class Node(object):
 		
 		if len(confs) == 0:
 			return
-
-		conf_asort = np.argsort(confs).ravel()
-		confs = confs[conf_asort]
-		correct_mask = correct_mask[conf_asort]
 		
-		cdf = np.cumsum(confs)
-		cdf /= np.maximum(1e-7, cdf[-1])
+		conf_hist = np.histogram(confs, bins=nb*10)[0]
+		cdf = np.cumsum(conf_hist)
+		cdf = cdf / np.maximum(1e-7, cdf[-1])
 
 		cdf_intervals = np.linspace(0, 1, num=nb+1)
+		xp = np.linspace(0, 1, num=len(conf_hist))
+		bin_edges = np.interp(cdf_intervals, cdf, xp)
+		self.bin_edges = bin_edges[:]
 
-		bin_edges = np.interp(cdf_intervals, cdf, np.linspace(0, 1, num=confs.shape[0]))
+		bin_edges = np.array(bin_edges)
 		self.bin_edges = bin_edges[:]
 
 		self.bin_file = join(self.data_dir, '%s_bin_edges.txt' % self.uid)

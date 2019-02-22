@@ -49,21 +49,15 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, sm_by_slice
 			# Get the predicted label (index within the cluster)
 			pred_label = np.argmax(slc_sm)
 
-			# Bin the softmax confidence for that label
-			conf = slc_sm[pred_label]
-			binno = np.floor(conf/res).astype(np.uint8)
-			binno = min(binno, nb-1)
-
-			# Get the calibrated confidence from the cluster's accuracy histogram
-			acc_hist = slc[pred_label].acc_hist
-			calib_conf = acc_hist[binno]
+			node = slc[pred_label]
+			conf = node.get_conf_for_score(slc_sm[pred_label])
 
 			if calib_conf >= conf_thresh:
 				# If we predicted a terminal label in not the first slice, output the terminal label, not the node index
 				if len(slc[pred_label].terminals) == 1:
-					confident_label = slc[pred_label].terminals[0]
+					confident_label = node.terminals[0]
 				else:
-					confident_label = slc[pred_label].node_idx
+					confident_label = node.node_idx
 
 				break
 

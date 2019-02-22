@@ -86,7 +86,7 @@ class Node(object):
 		count_hist = np.zeros_like(corr_hist)
 
 		for i, bin_edge in enumerate(self.bin_edges[1:]):
-			bin_mask = self.bin_edges[i] < confs <= bin_edge
+			bin_mask = (self.bin_edges[i] < confs) & (confs <= bin_edge)
 			
 			num_pix = bin_mask.sum()
 			num_corr = correct_mask[bin_mask].sum()

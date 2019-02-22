@@ -57,16 +57,22 @@ class Node(object):
 	def generate_equalized_acc_hist(self, nb):
 		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
 		assert isfile(self.corr_file), '%s corr file does not exist' % self.uid
+		
+		if getsize(self.conf_file) == 0:
+			return
 
 		confs = np.genfromtxt(self.conf_file)
 		correct_mask = np.genfromtxt(self.corr_file).astype(np.bool)
+		
+		if len(confs) == 0:
+			return
 
 		cdf = np.cumsum(confs)
 		cdf /= np.maximum(1e-7, cdf[-1])
 
 		cdf_intervals = np.linspace(0, 1, num=nb+1)
 
-		bin_edges = np.interp(cdf_intervals, cdfs, np.linspace(0, 1, num=confs.shape[0]))
+		bin_edges = np.interp(cdf_intervals, cdf, np.linspace(0, 1, num=confs.shape[0]))
 		self.bin_edges = bin_edges[:]
 
 		self.bin_file = join(self.data_dir, '%s_bin_edges.txt' % self.uid)

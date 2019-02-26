@@ -9,9 +9,9 @@ def poolcontext(num_proc):
 	yield pool
 	pool.terminate()
 
-def equa_hist(slc):
+def get_hist(slc):
 	for node in slc:
-		node.generate_acc_hist(20, equa=True)
+		node.generate_acc_hist(20, equa=False)
 
 if __name__ == '__main__':
 	slices = read_slices('slices.pkl')
@@ -19,6 +19,6 @@ if __name__ == '__main__':
 	num_proc = len(slices)
 
 	with poolcontext(num_proc) as p:
-		proc_slices = p.map(equa_hist, slices)
+		proc_slices = p.map(get_hist, slices)
 
 	save_slices('slices.pkl', slices)

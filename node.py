@@ -54,7 +54,7 @@ class Node(object):
 			np.savetxt(f, correct_mask.astype(np.bool))
 
 			
-	def generate_equalized_acc_hist(self, nb):
+	def generate_acc_hist(self, nb, equa=True):
 		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
 		assert isfile(self.corr_file), '%s corr file does not exist' % self.uid
 		
@@ -67,14 +67,16 @@ class Node(object):
 		if len(confs) == 0:
 			return
 		
-		conf_hist = np.histogram(confs, bins=nb*10)[0]
-		cdf = np.cumsum(conf_hist)
-		cdf = cdf / np.maximum(1e-7, cdf[-1])
+		if equa:
+			conf_hist = np.histogram(confs, bins=nb*10)[0]
+			cdf = np.cumsum(conf_hist)
+			cdf = cdf / np.maximum(1e-7, cdf[-1])
 
-		cdf_intervals = np.linspace(0, 1, num=nb+1)
-		xp = np.linspace(0, 1, num=len(conf_hist))
-		bin_edges = np.interp(cdf_intervals, cdf, xp)
-		self.bin_edges = bin_edges[:]
+			cdf_intervals = np.linspace(0, 1, num=nb+1)
+			xp = np.linspace(0, 1, num=len(conf_hist))
+			bin_edges = np.interp(cdf_intervals, cdf, xp)
+		else:
+			bin_edges = np.linspace(0, 1, bins=nb+1)
 
 		bin_edges = np.array(bin_edges)
 		self.bin_edges = bin_edges[:]
@@ -98,7 +100,7 @@ class Node(object):
 
 		self.acc_file = join(self.data_dir, '%s_acc_hist.txt' % self.uid)
 		np.savetxt(self.acc_file, self.acc_hist)
-		
+
 		
 	def get_conf_for_score(self, score):
 		assert isfile(self.bin_file) and isfile(self.acc_file)

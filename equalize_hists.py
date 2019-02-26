@@ -11,7 +11,7 @@ def poolcontext(num_proc):
 
 def equa_hist(slc):
 	for node in slc:
-		node.generate_equalized_acc_hist(20)
+		node.generate_equalized_acc_hist(10)
 
 if __name__ == '__main__':
 	slices = read_slices('slices.pkl')

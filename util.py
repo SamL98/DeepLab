@@ -104,20 +104,6 @@ def sm_of_logits(logits, start_idx=0, zero_pad=False):
 
 
 '''
-Statistics Utilities
-'''
-def calculate_conf_lower_bound(p_hat, n, alpha):
-	if n == 0:
-		return 0
-		
-	z = norm.ppf(1 - alpha/2)
-	pq_hat = p_hat * (1 - p_hat)
-	z_norm = z**2 / (4*n)
-	conf_range = z * np.sqrt((pq_hat + z_norm) / n)
-	return (p_hat + z_norm*2 - conf_range) / (1 + z_norm*4)
-
-
-'''
 Tree Utilities
 '''
 

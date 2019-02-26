@@ -2,6 +2,7 @@ import os
 from os.path import join, isfile, getsize
 import numpy as np
 from scipy.stats import norm
+from util import calculate_conf_lower_bound
 
 class Node(object):
 	def __init__(self, name, node_idx, terminals, data_dir='calib_data', is_main=False):
@@ -22,6 +23,7 @@ class Node(object):
 			pid = ''
 		else:
 			pid = '_' + str(os.getpid())
+
 		self.conf_file = join(self.data_dir, '%s_confs%s.txt' % (self.uid, pid))
 		self.corr_file = join(self.data_dir, '%s_corr%s.txt' % (self.uid, pid))
 
@@ -55,7 +57,7 @@ class Node(object):
 			np.savetxt(f, correct_mask.astype(np.bool))
 
 			
-	def generate_acc_hist(self, nb, equa=True):
+	def generate_acc_hist(self, nb, equa=True, lb=True, interp=True, alpha=0.75):
 		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
 		assert isfile(self.corr_file), '%s corr file does not exist' % self.uid
 		
@@ -99,14 +101,18 @@ class Node(object):
 
 		self.acc_hist = corr_hist.astype(np.float32) / np.maximum(1e-7, count_hist.astype(np.float32))
 
+		if lb:
+			for i, (acc_val, bin_count) in enumerate(zip(self.acc_hist, count_hist)):
+				self.acc_hist[i] = calculate_conf_lower_bound(acc_val, bin_count, alpha)
+
+		if interp:
+			self.interp_acc_hist(count_hist)
+
 		self.acc_file = join(self.data_dir, '%s_acc_hist.txt' % self.uid)
 		np.savetxt(self.acc_file, self.acc_hist)
 
-	
-	def calculate_conf_interval(self, alpha=0.3);
-	
-	
-	def get_conf_interval(self, alpha=0.3):
+
+	def get_conf_interval(self, alpha=0.75, interp=True):
 		assert alpha <= 1 and alpha >= 0
 		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
 		
@@ -114,7 +120,6 @@ class Node(object):
 			return
 
 		confs = np.genfromtxt(self.conf_file)
-		z = norm.ppf(1 - alpha/2)
 
 		if not hasattr(self, 'acc_hist'):
 			assert isfile(self.acc_file), '%s acc file does not exist' % self.uid
@@ -124,24 +129,28 @@ class Node(object):
 			assert isfile(self.bin_file), '%s bin file does not exist' % self.uid
 			self.bin_edges = np.genfromtxt(self.bin_file)
 			
-		count_hist = []
+		if interp:
+			count_hist = []
 
 		for i, bin_edge in enumerate(self.bin_edges[1:]):
 			bin_mask = (self.bin_edges[i] < confs) & (confs <= bin_edge)
 			n = bin_mask.sum()
-			count_hist.append(n)
+
+			if interp:
+				count_hist.append(n)
 
 			if n == 0:
 				continue
 
-			p_hat = self.acc_hist[i]
-			pq_hat = p_hat * (1 - p_hat)
-			z_norm = z**2 / (4*n)
-			conf_range = z * np.sqrt((pq_hat + z_norm) / n)
+			self.acc_hist[i] = calculate_conf_lower_bound(self.acc_hist[i], n, alpha)
 
-			p_lb = (p_hat + (z_norm*2) - conf_range) / (1 + z_norm*4)
-			self.acc_hist[i] = p_lb
+		if interp:
+			self.acc_hist = self.interp_acc_hist(count_hist)
 			
+
+	def interp_acc_hist(self, count_hist):
+		assert hasattr(self, 'acc_hist'), 'Node object does not have acc hist attribute.'
+
 		count_hist = np.array(count_hist)
 		
 		xs = np.argwhere(self.acc_hist == 0).ravel()

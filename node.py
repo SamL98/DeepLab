@@ -1,6 +1,7 @@
 import os
 from os.path import join, isfile, getsize
 import numpy as np
+from scipy.stats import norm
 
 class Node(object):
 	def __init__(self, name, node_idx, terminals, data_dir='calib_data', is_main=False):
@@ -100,6 +101,40 @@ class Node(object):
 
 		self.acc_file = join(self.data_dir, '%s_acc_hist.txt' % self.uid)
 		np.savetxt(self.acc_file, self.acc_hist)
+
+	
+	def calculate_conf_interval(self, alpha=0.3):
+		assert alpha <= 1 and alpha >= 0
+		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
+		
+		if getsize(self.conf_file) == 0:
+			return
+
+		confs = np.genfromtxt(self.conf_file)
+		z = norm.ppf(1 - alpha/2)
+
+		if not hasattr(self, 'acc_hist'):
+			assert isfile(self.acc_file), '%s acc file does not exist' % self.uid
+			self.acc_hist = np.genfromtxt(self.acc_file)
+
+		if not hasattr(self, 'bin_edges'):
+			assert isfile(self.bin_file), '%s bin file does not exist' % self.uid
+			self.bin_edges = np.genfromtxt(self.bin_file)
+
+		for i, bin_edge in enumerate(self.bin_edges[1:]):
+			bin_mask = (self.bin_edges[i] < confs) & (confs <= bin_edge)
+			n = bin_mask.sum()
+
+			if n == 0:
+				continue
+
+			p_hat = self.acc_hist[i]
+			pq_hat = p_hat * (1 - p_hat)
+			z_norm = z**2 / (4*n)
+			conf_range = z * np.sqrt((pq_hat + z_norm) / n)
+
+			p_lb = (p_hat + (z_norm*2) - conf_range) / (1 + z_norm*4)
+			self.acc_hist[i] = p_lb
 
 		
 	def get_conf_for_score(self, score):

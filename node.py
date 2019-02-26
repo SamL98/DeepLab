@@ -77,7 +77,7 @@ class Node(object):
 			xp = np.linspace(0, 1, num=len(conf_hist))
 			bin_edges = np.interp(cdf_intervals, cdf, xp)
 		else:
-			bin_edges = np.linspace(0, 1, bins=nb+1)
+			bin_edges = np.linspace(0, 1, num=nb+1)
 
 		bin_edges = np.array(bin_edges)
 		self.bin_edges = bin_edges[:]
@@ -103,7 +103,10 @@ class Node(object):
 		np.savetxt(self.acc_file, self.acc_hist)
 
 	
-	def calculate_conf_interval(self, alpha=0.3):
+	def calculate_conf_interval(self, alpha=0.3);
+	
+	
+	def get_conf_interval(self, alpha=0.3):
 		assert alpha <= 1 and alpha >= 0
 		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
 		
@@ -120,10 +123,13 @@ class Node(object):
 		if not hasattr(self, 'bin_edges'):
 			assert isfile(self.bin_file), '%s bin file does not exist' % self.uid
 			self.bin_edges = np.genfromtxt(self.bin_file)
+			
+		count_hist = []
 
 		for i, bin_edge in enumerate(self.bin_edges[1:]):
 			bin_mask = (self.bin_edges[i] < confs) & (confs <= bin_edge)
 			n = bin_mask.sum()
+			count_hist.append(n)
 
 			if n == 0:
 				continue
@@ -135,6 +141,23 @@ class Node(object):
 
 			p_lb = (p_hat + (z_norm*2) - conf_range) / (1 + z_norm*4)
 			self.acc_hist[i] = p_lb
+			
+		count_hist = np.array(count_hist)
+		
+		xs = np.argwhere(self.acc_hist == 0).ravel()
+		xp = np.argwhere(self.acc_hist > 0).ravel()
+		yp = self.acc_hist[xp]
+	
+		if count_hist[0] == 0 and self.acc_hist[0] == 0:
+			xp = np.concatenate(([0], xp))
+			yp = np.concatenate(([0], yp))
+		
+		if count_hist[-1] == 0 and self.acc_hist[-1] == 0:
+			xp = np.concatenate((xp, [len(self.acc_hist)-1]))
+			yp = np.concatenate((yp, [1]))
+
+		y_interp = np.interp(xs, xp, yp)
+		self.acc_hist[self.acc_hist == 0] = y_interp
 
 		
 	def get_conf_for_score(self, score):
@@ -152,8 +175,8 @@ class Node(object):
 		for i, bin_edge in enumerate(self.bin_edges[1:]):
 			if score <= bin_edge:
 				return self.acc_hist[i]
-
 				
+
 	def get_file_contents(self):
 		if not (isfile(self.conf_file) and isfile(self.corr_file)):
 			return None, None

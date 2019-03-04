@@ -8,7 +8,7 @@ Statistics Utilities
 '''
 def calculate_conf_interval(p_hat, n, alpha):
 	if n == 0:
-		return 0
+		return p_hat, 0
 		
 	z = norm.ppf(1 - alpha/2)
 	pq_hat = p_hat * (1 - p_hat)

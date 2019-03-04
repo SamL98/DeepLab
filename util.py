@@ -102,11 +102,6 @@ def sm_of_logits(logits, start_idx=0, zero_pad=False):
 
 	return sm
 
-
-'''
-Tree Utilities
-'''
-
 def get_depth_of_label(pred_label, slices):
 	if pred_label <= len(slices[0]):
 		# If pred_label is a terminal, it's parent could be a few levels up in the hierarchy.

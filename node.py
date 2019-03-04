@@ -6,15 +6,16 @@ from scipy.stats import norm
 '''
 Statistics Utilities
 '''
-def calculate_conf_lower_bound(p_hat, n, alpha):
+def calculate_conf_interval(p_hat, n, alpha):
 	if n == 0:
 		return 0
 		
 	z = norm.ppf(1 - alpha/2)
 	pq_hat = p_hat * (1 - p_hat)
 	z_norm = z**2 / (4*n)
-	conf_range = z * np.sqrt((pq_hat + z_norm) / n)
-	return (p_hat + z_norm*2 - conf_range) / (1 + z_norm*4)
+	conf_range = z * np.sqrt((pq_hat + z_norm) / n) / (1 + z_norm * 4)
+	p_hat_adj = (p_hat + z_norm*2) / (1 + z_norm*4)
+	return p_hat_adj, conf_range
 	
 
 class Node(object):
@@ -55,6 +56,11 @@ class Node(object):
 				self.acc_file = acc_hist_fname
 				self.acc_hist = np.genfromtxt(acc_hist_fname)
 
+			int_range_fname = join(self.data_dir, '%s_conf_int_range.txt' % self.uid)
+			if isfile(int_range_fname):
+				self.int_file = int_range_fname
+				self.int_ranges = np.genfromtxt(int_file)
+
 				
 	def get_fg_count(self):
 		'''
@@ -86,7 +92,7 @@ class Node(object):
 			np.savetxt(f, correct_mask.astype(np.bool))
 
 			
-	def generate_acc_hist(self, nb, equa=True, lb=True, interp=True, alpha=0.75):
+	def generate_acc_hist(self, nb, slc_len, equa=True, lb=True, interp=True, alpha=0.75):
 		'''
 		Generates the accuracy histogram for the current node.
 
@@ -120,7 +126,8 @@ class Node(object):
 			xp = np.linspace(0, 1, num=len(conf_hist))
 			bin_edges = np.interp(cdf_intervals, cdf, xp)
 		else:
-			bin_edges = np.linspace(0, 1, num=nb+1)
+			abs_lb = 1./slc_len
+			bin_edges = np.linspace(abs_lb, 1, num=nb+1)
 
 		bin_edges = np.array(bin_edges)
 		self.bin_edges = bin_edges[:]
@@ -143,8 +150,16 @@ class Node(object):
 		self.acc_hist = corr_hist.astype(np.float32) / np.maximum(1e-7, count_hist.astype(np.float32))
 
 		if lb:
+			self.int_file = join(self.data_dir, '%s_conf_int_range.txt' % self.uid)
+			int_ranges = []
+
 			for i, (acc_val, bin_count) in enumerate(zip(self.acc_hist, count_hist)):
-				self.acc_hist[i] = calculate_conf_lower_bound(acc_val, bin_count, alpha)
+				acc_adj, conf_range = calculate_conf_interval(acc_val, bin_count, alpha)
+				int_ranges.append(conf_range)
+				self.acc_hist[i] = acc_adj
+
+			self.int_ranges = np.array(int_ranges)
+			np.savetxt(self.int_file, self.int_ranges)
 
 		if interp:
 			self.interp_acc_hist(count_hist)
@@ -239,12 +254,20 @@ class Node(object):
 			self.bin_edges = np.genfromtxt(self.bin_file)
 			
 		if not hasattr(self, 'acc_hist'):
-			self.acc_hist = np.genfromtxt(self.acc_hist)
+			self.acc_hist = np.genfromtxt(self.acc_file)
+
+		if not hasattr(self, 'int_ranges'):
+			self.int_ranges = np.genfromtxt(self.int_file)
 			
 		for i, bin_edge in enumerate(self.bin_edges[1:]):
 			if score <= bin_edge:
 				# Return the first histogram value that is within the current bin
-				return self.acc_hist[i]
+				acc_val = self.acc_hist[i]
+
+				if hasattr(self, 'int_ranges'):
+					acc_val -= self.int_ranges[i]
+
+				return acc_val
 				
 
 	def get_file_contents(self):

@@ -50,7 +50,7 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, sm_by_slice
 			pred_label = np.argmax(slc_sm)
 
 			node = slc[pred_label]
-			conf = node.get_conf_for_score(slc_sm[pred_label])
+			calib_conf = node.get_conf_for_score(slc_sm[pred_label])
 
 			if calib_conf >= conf_thresh:
 				# If we predicted a terminal label in not the first slice, output the terminal label, not the node index
@@ -70,12 +70,14 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, sm_by_slice
 	
 	
 def calibrate_logits_unpack(params):
-	calibrate_logits(*params)
+	idx_batch, imset, slices, nb, save = params
+	for idx in idx_batch:
+		calibrate_logits(idx, imset, slices, nb, save)
 	
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Build the calibration hierarchy using multiprocessing.')
 parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
-parser.add_argument('--imset', dest='imset', type=str, default='val', help='The image set to build the calibration histograms from. Either val or test')
+parser.add_argument('--imset', dest='imset', type=str, default='test', help='The image set to build the calibration histograms from. Either val or test')
 parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='The number of processes to spawn to parallelize calibration.')
 
 if __name__ == '__main__':
@@ -83,8 +85,8 @@ if __name__ == '__main__':
 
 	# Load the slices from the specified file
 
-	slices = read_slices(args.slice_file, reset=args.reset)
-	nb = len(slices[0][0].count_hist)
+	slices = read_slices(args.slice_file, reset=False)
+	nb = len(slices[0][0].acc_hist)
 
 	# Load the index ordering -- indexes are ordered by number of foreground pixels in descending order
 	#

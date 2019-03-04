@@ -14,7 +14,7 @@ def get_hist(slc):
 		node.generate_acc_hist(10, equa=False)
 
 if __name__ == '__main__':
-	slices = read_slices('slices.pkl')
+	slices = read_slices('slices.pkl', reset=False)
 
 	num_proc = len(slices)
 

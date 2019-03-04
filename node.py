@@ -2,7 +2,21 @@ import os
 from os.path import join, isfile, getsize
 import numpy as np
 from scipy.stats import norm
-from util import calculate_conf_lower_bound
+
+'''
+Statistics Utilities
+'''
+def calculate_conf_interval(p_hat, n, alpha):
+	if n == 0:
+		return 0
+		
+	z = norm.ppf(1 - alpha/2)
+	pq_hat = p_hat * (1 - p_hat)
+	z_norm = z**2 / (4*n)
+	conf_range = z * np.sqrt((pq_hat + z_norm) / n) / (1 + z_norm * 4)
+	p_hat_adj = (p_hat + z_norm*2) / (1 + z_norm*4)
+	return p_hat_adj, conf_range
+	
 
 class Node(object):
 	def __init__(self, name, node_idx, terminals, data_dir='calib_data', is_main=False):

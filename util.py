@@ -102,27 +102,6 @@ def sm_of_logits(logits, start_idx=0, zero_pad=False):
 
 	return sm
 
-
-'''
-Statistics Utilities
-'''
-
-def calculate_conf_interval(p_hat, n, alpha):
-	if n == 0:
-		return 0
-		
-	z = norm.ppf(1 - alpha/2)
-	pq_hat = p_hat * (1 - p_hat)
-	z_norm = z**2 / (4*n)
-	conf_range = z * np.sqrt((pq_hat + z_norm) / n) / (1 + z_norm * 4)
-	p_hat_adj = (p_hat + z_norm*2) / (1 + z_norm*4)
-	return p_hat_adj, conf_range
-
-
-'''
-Tree Utilities
-'''
-
 def get_depth_of_label(pred_label, slices):
 	if pred_label <= len(slices[0]):
 		# If pred_label is a terminal, it's parent could be a few levels up in the hierarchy.

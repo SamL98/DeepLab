@@ -10,8 +10,9 @@ def poolcontext(num_proc):
 	pool.terminate()
 
 def get_hist(slc):
+	slc_len = len(slc)
 	for node in slc:
-		node.generate_acc_hist(10, equa=False)
+		node.generate_acc_hist(10, slc_len, equa=False)
 
 if __name__ == '__main__':
 	slices = read_slices('slices.pkl')

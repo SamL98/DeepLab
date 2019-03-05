@@ -92,7 +92,7 @@ class Node(object):
 			np.savetxt(f, correct_mask.astype(np.bool))
 
 			
-	def generate_acc_hist(self, nb, slc_len, equa=True, lb=True, interp=True, alpha=0.75):
+	def generate_acc_hist(self, nb, slc_len, equa=True, lb=True, interp=True, alpha=0.05):
 		'''
 		Generates the accuracy histogram for the current node.
 
@@ -266,6 +266,7 @@ class Node(object):
 
 				if hasattr(self, 'int_ranges'):
 					acc_val -= self.int_ranges[i]
+					acc_val = max(0, acc_val)
 
 				return acc_val
 				

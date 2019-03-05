@@ -1,7 +1,8 @@
 import os
 from os.path import join, isfile, getsize
 import numpy as np
-from scipy.stats import norm
+from hdf5storage import loadmat, savemat
+from scipy.stats import norm, gaussian_kde
 
 '''
 Statistics Utilities
@@ -16,6 +17,23 @@ def calculate_conf_interval(p_hat, n, alpha):
 	conf_range = z * np.sqrt((pq_hat + z_norm) / n) / (1 + z_norm * 4)
 	p_hat_adj = (p_hat + z_norm*2) / (1 + z_norm*4)
 	return p_hat_adj, conf_range
+
+def pdf_for_confs(confs, bins):
+	pdf = gaussian_kde(confs)
+	return pdf(bins)
+
+def hist_for_confs(confs, bins):
+	pdf = pdf_for_confs(confs, bins)
+	n_c = len(confs)
+	return np.ceil(pdf * n_c)
+
+node_data_keys = {
+	ACC_HIST: 'acc_hist',
+	C_HIST: 'c_hist',
+	IC_HIST: 'ic_hist',
+	COUNT_HIST: 'count_hist',
+	INT_RANGES: 'int_ranges'
+}
 	
 
 class Node(object):
@@ -46,20 +64,18 @@ class Node(object):
 		self.corr_file = join(self.data_dir, '%s_corr%s.txt' % (self.uid, pid))
 
 		if is_main:
-			bin_edge_fname = join(self.data_dir, '%s_bin_edges.txt' % self.uid)
-			if isfile(bin_edge_fname):
-				self.bin_file = bin_edge_fname
-				self.bin_edges = np.genfromtxt(bin_edge_fname)
+			self.node_data_fname = join(self.data_dir, '%s_node_data.mat' % self.uid)
+			if isfile(self.node_data_fname):
+				self.load_node_data()
 
-			acc_hist_fname = join(self.data_dir, '%s_acc_hist.txt' % self.uid)
-			if isfile(acc_hist_fname):
-				self.acc_file = acc_hist_fname
-				self.acc_hist = np.genfromtxt(acc_hist_fname)
 
-			int_range_fname = join(self.data_dir, '%s_conf_int_range.txt' % self.uid)
-			if isfile(int_range_fname):
-				self.int_file = int_range_fname
-				self.int_ranges = np.genfromtxt(int_file)
+	def load_node_data(self):
+		self.node_data = loadmat(self.node_data_fname)
+		self.acc_hist = self.node_data[node_data_keys.ACC_HIST]
+		self.c_hist = self.node_data[node_data_keys.C_HIST]
+		self.ic_hist = self.node_data[node_data_keys.IC_HIST]
+		self.count_hist = self.node_data[node_data_keys.COUNT_HIST]
+		self.int_ranges = self.node_data[node_data_keys.INT_RANGES]
 
 				
 	def get_fg_count(self):
@@ -92,14 +108,12 @@ class Node(object):
 			np.savetxt(f, correct_mask.astype(np.bool))
 
 			
-	def generate_acc_hist(self, nb, slc_len, equa=True, lb=True, interp=True, alpha=0.05):
+	def generate_acc_hist(self, nb, slc_len, lb=True, alpha=0.75):
 		'''
 		Generates the accuracy histogram for the current node.
 
 		:param nb: the number of bins in the histogram
-		:param equa: whether or not to equalize the histogram
 		:param lb: whether or not to store the lower bound of the accuracy in each bin (according to the Wilson confidence interval)
-		:param interp: whether or not to interpolate the resulting histogram (to fix bins with no pixels)
 		:param alpha: the confidence for the Wilson confidence interval -- only matters when lb=True
 		'''
 		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
@@ -109,107 +123,50 @@ class Node(object):
 			return
 
 		confs, correct_mask = self.get_file_contents()
-		
 		if len(confs) == 0:
 			return
+
+		#abs_lb = 1./slc_len
+		abs_lb = 0
+		bin_edges = np.linspace(abs_lb, 1, num=nb+1)
+
+		c_hist = hist_for_confs(confs[correct_mask], bin_edges)
+		ic_hist = hist_for_confs(confs[!correct_mask], bin_edges)
 		
-		if equa:
-			# If we are equalizing, first create a histogram of the confidences with 10 times
-			# the target number of bins to create the CDF from.
-			#
-			# This is because each node has such a large number of pixels, the CDF is already fairly equalized.
-			conf_hist = np.histogram(confs, bins=nb*10)[0]
-			cdf = np.cumsum(conf_hist)
-			cdf = cdf / np.maximum(1e-7, cdf[-1])
+		t_hist = c_hist + ic_hist
+		acc_hist = c_hist.astype(np.float32) / np.maximum(1e-7, t_hist.astype(np.float32))
+		count_hist = np.zeros_like(t_hist)
 
-			cdf_intervals = np.linspace(0, 1, num=nb+1)
-			xp = np.linspace(0, 1, num=len(conf_hist))
-			bin_edges = np.interp(cdf_intervals, cdf, xp)
-		else:
-			abs_lb = 1./slc_len
-			bin_edges = np.linspace(abs_lb, 1, num=nb+1)
-
-		bin_edges = np.array(bin_edges)
-		self.bin_edges = bin_edges[:]
-
-		self.bin_file = join(self.data_dir, '%s_bin_edges.txt' % self.uid)
-		np.savetxt(self.bin_file, self.bin_edges)
-
-		corr_hist = np.zeros((nb), dtype=np.float32)
-		count_hist = np.zeros_like(corr_hist)
-
-		for i, bin_edge in enumerate(self.bin_edges[1:]):
-			bin_mask = (self.bin_edges[i] < confs) & (confs <= bin_edge)
-			
-			num_pix = bin_mask.sum()
-			num_corr = correct_mask[bin_mask].sum()
-
-			corr_hist[i] += num_corr
-			count_hist[i] += num_pix
-
-		self.acc_hist = corr_hist.astype(np.float32) / np.maximum(1e-7, count_hist.astype(np.float32))
+		for i, be in enumerate(bin_edges[1:]):
+			mask = (confs > bin_edges[i]) & (confs <= be)
+			count_hist[i] = mask.sum()
 
 		if lb:
-			self.int_file = join(self.data_dir, '%s_conf_int_range.txt' % self.uid)
 			int_ranges = []
 
-			for i, (acc_val, bin_count) in enumerate(zip(self.acc_hist, count_hist)):
+			for i, (acc_val, bin_count) in enumerate(zip(acc_hist, count_hist)):
 				acc_adj, conf_range = calculate_conf_interval(acc_val, bin_count, alpha)
 				int_ranges.append(conf_range)
-				self.acc_hist[i] = acc_adj
+				acc_hist[i] = acc_adj
 
-			self.int_ranges = np.array(int_ranges)
-			np.savetxt(self.int_file, self.int_ranges)
+			int_ranges = np.array(int_ranges)
+			self.int_ranges = int_ranges
 
-		if interp:
-			self.interp_acc_hist(count_hist)
+		self.acc_hist = acc_hist
+		self.c_hist = c_hist
+		self.ic_hist = ic_hist
+		self.count_hist = count_hist
+		self.node_data = {
+			node_data_keys.ACC_HIST: acc_hist,
+			node_data_keys.C_HIST: c_hist,
+			node_data_keys.IC_HIST: ic_hist,
+			node_data_keys.COUNT_HIST: count_hist,
+		}
 
-		self.acc_file = join(self.data_dir, '%s_acc_hist.txt' % self.uid)
-		np.savetxt(self.acc_file, self.acc_hist)
+		if hasattr(self, 'int_ranges'):
+			self.node_data[node_data_keys.INT_RANGES] = self.int_ranges
 
-
-	def get_acc_lower_bound(self, alpha=0.75, interp=True):
-		'''
-		Modifies the accuracy histogram to contain the lower bound according to the Wilson confidence
-		interval at each bin. This shouldn't be called if generate_acc_hist was called with lb=True.
-
-		:param alpha: the confidence
-		:param interp: whether or not to interpolate the resulting histogram
-		'''
-		assert alpha <= 1 and alpha >= 0
-		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
-		
-		if getsize(self.conf_file) == 0:
-			return
-
-		confs = np.genfromtxt(self.conf_file)
-
-		if not hasattr(self, 'acc_hist'):
-			assert isfile(self.acc_file), '%s acc file does not exist' % self.uid
-			self.acc_hist = np.genfromtxt(self.acc_file)
-
-		if not hasattr(self, 'bin_edges'):
-			assert isfile(self.bin_file), '%s bin file does not exist' % self.uid
-			self.bin_edges = np.genfromtxt(self.bin_file)
-			
-		if interp:
-			# We only need the corresponding count hist if we are interpolating afterwards
-			count_hist = []
-
-		for i, bin_edge in enumerate(self.bin_edges[1:]):
-			bin_mask = (self.bin_edges[i] < confs) & (confs <= bin_edge)
-			n = bin_mask.sum()
-
-			if interp:
-				count_hist.append(n)
-
-			if n == 0:
-				continue
-
-			self.acc_hist[i] = calculate_conf_lower_bound(self.acc_hist[i], n, alpha)
-
-		if interp:
-			self.acc_hist = self.interp_acc_hist(count_hist)
+		savemat(self.node_data_fname, self.node_data)
 			
 
 	def interp_acc_hist(self, count_hist):
@@ -245,30 +202,23 @@ class Node(object):
 
 		:param score: the softmax score to calibrate
 		'''
-		assert isfile(self.bin_file) and isfile(self.acc_file)
+		assert isfile(self.node_data_fname)
 		
 		if getsize(self.corr_file) == 0:
 			return 0
 		
-		if not hasattr(self, 'bin_edges'):
-			self.bin_edges = np.genfromtxt(self.bin_file)
-			
-		if not hasattr(self, 'acc_hist'):
-			self.acc_hist = np.genfromtxt(self.acc_file)
+		if not hasattr(self, 'node_data'):
+			self.load_node_data()
 
-		if not hasattr(self, 'int_ranges'):
-			self.int_ranges = np.genfromtxt(self.int_file)
-			
-		for i, bin_edge in enumerate(self.bin_edges[1:]):
-			if score <= bin_edge:
-				# Return the first histogram value that is within the current bin
-				acc_val = self.acc_hist[i]
+		nb = len(self.acc_hist)
+		res = 1./nb
+		binno = np.floor(score/res)
+		acc_val = self.acc_hist[binno]
 
-				if hasattr(self, 'int_ranges'):
-					acc_val -= self.int_ranges[i]
-					acc_val = max(0, acc_val)
+		if hasattr(self, 'int_ranges'):
+			acc_val -= self.int_ranges[i]
 
-				return acc_val
+		return acc_val
 				
 
 	def get_file_contents(self):

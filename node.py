@@ -19,7 +19,7 @@ def conf_ints(pdf, count_hist, alpha):
 	pq = p * (1 - p)
 	zn = z**2 / (4*n)
 
-	conf_range = z * np.sqrt((pq_hat + zn) / n) / (1 + zn*4)
+	conf_range = z * np.sqrt((pq + zn) / n) / (1 + zn*4)
 	new_p = (p + zn*2) / (1 + zn*4)
 
 	pdf[mask] = new_p
@@ -28,8 +28,10 @@ def conf_ints(pdf, count_hist, alpha):
 	return pdf, ranges
 
 def pdf_for_confs(confs, bins, sigma=0.75):
-	kde = KernelDensity(kernel='gaussian', bandwidth=sigma).fit(confs)
-	log_dens = kde.score_samples(bins)
+	if len(confs) == 0:
+		return np.zeros((len(bins)-1), dtype=np.float32)
+	kde = KernelDensity(kernel='gaussian', bandwidth=sigma).fit(confs[:,np.newaxis])
+	log_dens = kde.score_samples(bins[1:,np.newaxis])
 	return np.exp(log_dens)
 
 def count_hist_for_confs(confs, bins):
@@ -41,6 +43,7 @@ def count_hist_for_confs(confs, bins):
 
 def density(confs, mask, bins, sigma, alpha):
 	n = mask.sum()
+	print(confs.shape, mask.shape)
 	confs_masked = confs[mask]
 	pdf = pdf_for_confs(confs_masked, bins, sigma=sigma)
 	count_hist = count_hist_for_confs(confs_masked, bins)
@@ -87,13 +90,13 @@ class Node(object):
 
 		
 	def _accum_stats(self, n_c, c_pdf, c_ci, n_ic, ic_pdf, ic_ci):
-		add_attr_if_not_exists(self, 'n_c', 0)
-		add_attr_if_not_exists(self, 'n_ic', 0)
-		add_attr_if_not_exists(self, 'n_pdf', 1)
-		add_attr_if_not_exists(self, 'tot_c_pdf', np.zeros_like(c_pdf))
-		add_attr_if_not_exists(self, 'tot_ic_pdf', np.zeros_like(c_pdf))
-		add_attr_if_not_exists(self, 'tot_c_ci', np.zeros_like(c_ci))
-		add_attr_if_not_exists(self, 'tot_ic_ci', np.zeros_like(c_ci))
+		self.add_attr_if_not_exists('n_c', 0)
+		self.add_attr_if_not_exists('n_ic', 0)
+		self.add_attr_if_not_exists('n_pdf', 1)
+		self.add_attr_if_not_exists('tot_c_pdf', np.zeros_like(c_pdf))
+		self.add_attr_if_not_exists('tot_ic_pdf', np.zeros_like(c_pdf))
+		self.add_attr_if_not_exists('tot_c_ci', np.zeros_like(c_ci))
+		self.add_attr_if_not_exists('tot_ic_ci', np.zeros_like(c_ci))
 
 		self.n_c += n_c
 		self.n_ic += n_ic
@@ -103,7 +106,7 @@ class Node(object):
 		self.tot_ic_pdf += ic_pdf
 
 		self.c_pdf = self.tot_c_pdf / self.n_pdf
-		self.ic_pdf = self.tot_ic_idf / self.n_pdf
+		self.ic_pdf = self.tot_ic_pdf / self.n_pdf
 
 		self.tot_c_ci += c_ci
 		self.tot_ic_ci += ic_ci

@@ -3,6 +3,7 @@ from os.path import join, isfile, getsize
 import numpy as np
 from hdf5storage import loadmat, savemat
 from scipy.stats import norm, gaussian_kde
+from enum import Enum
 
 '''
 Statistics Utilities
@@ -23,17 +24,18 @@ def pdf_for_confs(confs, bins):
 	return pdf(bins)
 
 def hist_for_confs(confs, bins):
+	if confs.sum() == 0:
+		return 0
 	pdf = pdf_for_confs(confs, bins)
 	n_c = len(confs)
 	return np.ceil(pdf * n_c)
 
-node_data_keys = {
-	ACC_HIST: 'acc_hist',
-	C_HIST: 'c_hist',
-	IC_HIST: 'ic_hist',
-	COUNT_HIST: 'count_hist',
-	INT_RANGES: 'int_ranges'
-}
+class node_data_keys(Enum):
+	ACC_HIST = 'acc_hist'
+	C_HIST = 'c_hist'
+	IC_HIST = 'ic_hist'
+	COUNT_HIST = 'count_hist'
+	INT_RANGES = 'int_ranges'
 	
 
 class Node(object):
@@ -71,11 +73,11 @@ class Node(object):
 
 	def load_node_data(self):
 		self.node_data = loadmat(self.node_data_fname)
-		self.acc_hist = self.node_data[node_data_keys.ACC_HIST]
-		self.c_hist = self.node_data[node_data_keys.C_HIST]
-		self.ic_hist = self.node_data[node_data_keys.IC_HIST]
-		self.count_hist = self.node_data[node_data_keys.COUNT_HIST]
-		self.int_ranges = self.node_data[node_data_keys.INT_RANGES]
+		self.acc_hist = self.node_data[node_data_keys.ACC_HIST.value]
+		self.c_hist = self.node_data[node_data_keys.C_HIST.value]
+		self.ic_hist = self.node_data[node_data_keys.IC_HIST.value]
+		self.count_hist = self.node_data[node_data_keys.COUNT_HIST.value]
+		self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
 
 				
 	def get_fg_count(self):
@@ -131,7 +133,7 @@ class Node(object):
 		bin_edges = np.linspace(abs_lb, 1, num=nb+1)
 
 		c_hist = hist_for_confs(confs[correct_mask], bin_edges)
-		ic_hist = hist_for_confs(confs[!correct_mask], bin_edges)
+		ic_hist = hist_for_confs(confs[1-correct_mask], bin_edges)
 		
 		t_hist = c_hist + ic_hist
 		acc_hist = c_hist.astype(np.float32) / np.maximum(1e-7, t_hist.astype(np.float32))
@@ -157,14 +159,14 @@ class Node(object):
 		self.ic_hist = ic_hist
 		self.count_hist = count_hist
 		self.node_data = {
-			node_data_keys.ACC_HIST: acc_hist,
-			node_data_keys.C_HIST: c_hist,
-			node_data_keys.IC_HIST: ic_hist,
-			node_data_keys.COUNT_HIST: count_hist,
+			node_data_keys.ACC_HIST.value: acc_hist,
+			node_data_keys.C_HIST.value: c_hist,
+			node_data_keys.IC_HIST.value: ic_hist,
+			node_data_keys.COUNT_HIST.value: count_hist,
 		}
 
 		if hasattr(self, 'int_ranges'):
-			self.node_data[node_data_keys.INT_RANGES] = self.int_ranges
+			self.node_data[node_data_keys.INT_RANGES.value] = self.int_ranges
 
 		savemat(self.node_data_fname, self.node_data)
 			

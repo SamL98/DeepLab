@@ -12,7 +12,8 @@ def poolcontext(num_proc):
 def get_hist(slc):
 	slc_len = len(slc)
 	for node in slc:
-		node.generate_acc_hist(10, slc_len)
+		node.__init__(node.name, node.node_idx, node.terminals, is_main=True)
+		node.generate_acc_hist(20, slc_len)
 	return slc
 
 if __name__ == '__main__':

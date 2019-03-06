@@ -46,7 +46,7 @@ def confs_for_pixels(logits, gt, slices, args):
 			sm_conf = slc_sm_masked[:,j]
 
 			# Save the confidence of each pixel as well as whether it was correct to disk
-			node.append_confs(sm_conf, slc_gt_masked == j)
+			node.accum_pdfs(sm_conf, slc_gt_masked == j, args.nb)
 
 	return slices
 
@@ -73,28 +73,20 @@ def get_confs_for_idxs(idxs, slices, args):
 def get_confs_for_idxs_unpack(params):
 	return get_confs_for_idxs(*params)
 
-def aggregate_proc_confs(proc_slices, slices, data_dir):
+def aggregate_proc_confs(proc_slices, slices, args):
 	for i, slc in enumerate(slices):
 		for j, node in enumerate(slc):
 			node.__init__(node.name, node.node_idx, node.terminals, data_dir=args.data_dir, is_main=True)
-		
-			conf_f = open(node.conf_file, 'a')
-			corr_f = open(node.corr_file, 'a')
 
 			for proc_slice in proc_slices:
 				proc_node = proc_slice[i][j]
 				
-				conf, corr_mask = proc_node.get_file_contents()
-				proc_node.reset()
-				
-				if conf is None:
+				if not hasattr(proc_node, 'n_c'):
 					continue
 
-				np.savetxt(conf_f, conf)
-				np.savetxt(corr_f, corr_mask)
+				node.accum_node(proc_node)
 
-			conf_f.close()
-			corr_f.close()
+			node.generate_add_hist(args.nb)
 
 	return slices
 
@@ -104,6 +96,7 @@ parser = ArgumentParser(description='Build the calibration hierarchy using multi
 parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
 parser.add_argument('--imset', dest='imset', type=str, default='val', help='The image set to build the calibration confograms from. Either val or test')
 parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='The number of processes to spawn to parallelize calibration.')
+parser.add_argument('--nb', dest='nb', type=int, default=100, help='The number of bins in the calibration histogram.')
 parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 parser.add_argument('--dont_reset', dest='reset', action='store_false', help='Pass if you want to accumulate calibration confograms. Normally they are reset when this script is run.')
 parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
@@ -151,7 +144,7 @@ if __name__ == '__main__':
 	with poolcontext(args.num_proc) as p:
 		proc_slices = p.map(get_confs_for_idxs_unpack, param_batches)
 
-	slices = aggregate_proc_confs(proc_slices, slices, args.data_dir)
+	slices = aggregate_proc_confs(proc_slices, slices, args)
 
 	# Save the calibration data
 

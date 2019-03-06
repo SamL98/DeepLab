@@ -2,33 +2,50 @@ import os
 from os.path import join, isfile, getsize
 import numpy as np
 from hdf5storage import loadmat, savemat
-from scipy.stats import norm, gaussian_kde
+from scipy.stats import norm
+from sklearn.neighbors.kde import KernelDensity
 from enum import Enum
 
 '''
 Statistics Utilities
 '''
-def calculate_conf_interval(p_hat, n, alpha):
-	if n == 0:
-		return p_hat, 0
-		
+def conf_ints(pdf, count_hist, alpha):
+	mask = count_hist > 0
+	ranges = np.zeros_like(pdf)
+
+	p, n = pdf[mask], count_hist[mask]
+	
 	z = norm.ppf(1 - alpha/2)
-	pq_hat = p_hat * (1 - p_hat)
-	z_norm = z**2 / (4*n)
-	conf_range = z * np.sqrt((pq_hat + z_norm) / n) / (1 + z_norm * 4)
-	p_hat_adj = (p_hat + z_norm*2) / (1 + z_norm*4)
-	return p_hat_adj, conf_range
+	pq = p * (1 - p)
+	zn = z**2 / (4*n)
 
-def pdf_for_confs(confs, bins):
-	pdf = gaussian_kde(confs)
-	return pdf(bins)
+	conf_range = z * np.sqrt((pq_hat + zn) / n) / (1 + zn*4)
+	new_p = (p + zn*2) / (1 + zn*4)
 
-def hist_for_confs(confs, bins):
-	if confs.sum() == 0:
-		return 0
-	pdf = pdf_for_confs(confs, bins)
-	n_c = len(confs)
-	return np.ceil(pdf * n_c)
+	pdf[mask] = new_p
+	ranges[mask] = conf_range
+
+	return pdf, ranges
+
+def pdf_for_confs(confs, bins, sigma=0.75):
+	kde = KernelDensity(kernel='gaussian', bandwidth=sigma).fit(confs)
+	log_dens = kde.score_samples(bins)
+	return np.exp(log_dens)
+
+def count_hist_for_confs(confs, bins):
+	nb = len(bins)-1
+	res = 1./nb
+	count_hist = np.zeros((nb), dtype=np.int32)
+	bin_vec = np.maximum(nb-1, np.floor(confs/res).astype(np.uint8))
+	return np.histogram(bin_vec, bins=bins)[0]
+
+def density(confs, mask, bins, sigma, alpha):
+	n = mask.sum()
+	confs_masked = confs[mask]
+	pdf = pdf_for_confs(confs_masked, bins, sigma=sigma)
+	count_hist = count_hist_for_confs(confs_masked, bins)
+	ci = conf_ints(pdf, count_hist, alpha)
+	return pdf, ci, n
 
 class node_data_keys(Enum):
 	ACC_HIST = 'acc_hist'
@@ -40,15 +57,6 @@ class node_data_keys(Enum):
 
 class Node(object):
 	def __init__(self, name, node_idx, terminals, data_dir='calib_data', is_main=False):
-		'''
-		Instantiate a Node object
-		
-		:param name: the name of the node
-		:param node_idx: the index of the node within the hierarchy
-		:param terminals: the indices of all terminal labels within this node's subtree
-		:param data_dir: the directory to save data files in
-		:param is_main: whether or not this node is the only clone for this node
-		'''
 		self.uid = '%d-%s' % (node_idx, name)
 		self.name = name
 		self.node_idx = node_idx
@@ -62,154 +70,85 @@ class Node(object):
 		else:
 			pid = '_' + str(os.getpid())
 
-		self.conf_file = join(self.data_dir, '%s_confs%s.txt' % (self.uid, pid))
-		self.corr_file = join(self.data_dir, '%s_corr%s.txt' % (self.uid, pid))
-
 		if is_main:
 			self.node_data_fname = join(self.data_dir, '%s_node_data.mat' % self.uid)
 			if isfile(self.node_data_fname):
 				self.load_node_data()
 
+	def add_attr_if_not_exists(self, attr_name, attr_val):
+		if not hasattr(self, attr_name):
+			setattr(self, attr_name, attr_val)
+
 
 	def load_node_data(self):
 		self.node_data = loadmat(self.node_data_fname)
 		self.acc_hist = self.node_data[node_data_keys.ACC_HIST.value]
-		self.c_hist = self.node_data[node_data_keys.C_HIST.value]
-		self.ic_hist = self.node_data[node_data_keys.IC_HIST.value]
-		self.count_hist = self.node_data[node_data_keys.COUNT_HIST.value]
 		self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
 
-				
-	def get_fg_count(self):
-		'''
-		Return the number of foreground pixels that the were classified as the current node
-		'''
-		assert isfile(self.corr_file)
-
-		if getsize(self.corr_file) == 0:
-			return 0
-
-		# The number of foreground pixels is equivalent to the number of pixels stored in each file.
-		# Load the correct mask file because the data type is smaller and therefore should be a bit faster to load.
-		return np.genfromtxt(self.corr_file).shape[0]
-
 		
-	def append_confs(self, confs, correct_mask):
-		'''
-		Write the given confidences and corresponding correct booleans to disk
+	def _accum_stats(self, n_c, c_pdf, c_ci, n_ic, ic_pdf, ic_ci):
+		add_attr_if_not_exists(self, 'n_c', 0)
+		add_attr_if_not_exists(self, 'n_ic', 0)
+		add_attr_if_not_exists(self, 'n_pdf', 1)
+		add_attr_if_not_exists(self, 'tot_c_pdf', np.zeros_like(c_pdf))
+		add_attr_if_not_exists(self, 'tot_ic_pdf', np.zeros_like(c_pdf))
+		add_attr_if_not_exists(self, 'tot_c_ci', np.zeros_like(c_ci))
+		add_attr_if_not_exists(self, 'tot_ic_ci', np.zeros_like(c_ci))
 
-		:param confs: a float vector of the softmax score
-		:param correct_mask: a boolean vector of whether each confs corresponds to a correct prediction
-		'''
-		assert confs.shape[0] == correct_mask.shape[0], 'confs and correct_mask should have same shape.'
+		self.n_c += n_c
+		self.n_ic += n_ic
 
-		with open(self.conf_file, 'a') as f:
-			np.savetxt(f, confs)
+		self.n_pdf += 1
+		self.tot_c_pdf += c_pdf
+		self.tot_ic_pdf += ic_pdf
 
-		with open(self.corr_file, 'a') as f:
-			np.savetxt(f, correct_mask.astype(np.bool))
+		self.c_pdf = self.tot_c_pdf / self.n_pdf
+		self.ic_pdf = self.tot_ic_idf / self.n_pdf
 
+		self.tot_c_ci += c_ci
+		self.tot_ic_ci += ic_ci
+
+		self.c_ci = self.tot_c_ci / self.n_pdf
+		self.ic_ci = self.tot_ic_ci / self.n_pdf
+
+	def accum_pdfs(self, confs, correct_mask, nb, sigma=0.75, alpha=0.05):
+		bins = np.linspace(0, 1, num=nb+1)
+		c_pdf, c_ci, n_c = density(confs, correct_mask, bins, sigma, alpha)
+		ic_pdf, ic_ci, n_ic = density(confs, 1-correct_mask, bins, sigma, alpha)
+		self._accum_stats(n_c, c_pdf, c_ci, n_ic, ic_pdf, ic_ci)
+	
+
+	def accum_node(self, node):
+		self._accum_stats(node.n_c, node.c_pdf, node.c_ci, node.n_ic, node.ic_pdf, node.ic_ci)
+
+	def _avg_hist(self, v1, v2, n1, n2):
+		h1 = np.ceil(v1*n1)
+		h2 = np.ceil(v2*n2)
+		t = h1 + h2
+		return h1 / np.maximum(1e-7, t)
 			
-	def generate_acc_hist(self, nb, slc_len, lb=True, alpha=0.75):
-		'''
-		Generates the accuracy histogram for the current node.
+	def generate_acc_hist(self, nb):
+		attrs = ['n_c', 'n_ic', 'c_pdf', 'ic_pdf', 'c_ci', 'ic_ci']
+		for attr in attrs:
+			if not hasattr(self, attr): return
 
-		:param nb: the number of bins in the histogram
-		:param lb: whether or not to store the lower bound of the accuracy in each bin (according to the Wilson confidence interval)
-		:param alpha: the confidence for the Wilson confidence interval -- only matters when lb=True
-		'''
-		assert isfile(self.conf_file), '%s conf file does not exist' % self.uid
-		assert isfile(self.corr_file), '%s corr file does not exist' % self.uid
+		bin_edges = np.linspace(0, 1, num=nb+1)
 		
-		if getsize(self.conf_file) == 0:
-			return
-
-		confs, correct_mask = self.get_file_contents()
-		if len(confs) == 0:
-			return
-
-		#abs_lb = 1./slc_len
-		abs_lb = 0
-		bin_edges = np.linspace(abs_lb, 1, num=nb+1)
-
-		c_hist = hist_for_confs(confs[correct_mask], bin_edges)
-		ic_hist = hist_for_confs(confs[1-correct_mask], bin_edges)
-		
-		t_hist = c_hist + ic_hist
-		acc_hist = c_hist.astype(np.float32) / np.maximum(1e-7, t_hist.astype(np.float32))
-		count_hist = np.zeros_like(t_hist)
-
-		for i, be in enumerate(bin_edges[1:]):
-			mask = (confs > bin_edges[i]) & (confs <= be)
-			count_hist[i] = mask.sum()
-
-		if lb:
-			int_ranges = []
-
-			for i, (acc_val, bin_count) in enumerate(zip(acc_hist, count_hist)):
-				acc_adj, conf_range = calculate_conf_interval(acc_val, bin_count, alpha)
-				int_ranges.append(conf_range)
-				acc_hist[i] = acc_adj
-
-			int_ranges = np.array(int_ranges)
-			self.int_ranges = int_ranges
+		acc_hist = self._avg_hist(self.c_pdf, self.ic_pdf, self.n_c, self.n_ic)
+		int_ranges = self._avg_hist(self.c_ci, self.ic_ci, self.n_c, self.n_ic)
 
 		self.acc_hist = acc_hist
-		self.c_hist = c_hist
-		self.ic_hist = ic_hist
-		self.count_hist = count_hist
 		self.node_data = {
 			node_data_keys.ACC_HIST.value: acc_hist,
-			node_data_keys.C_HIST.value: c_hist,
-			node_data_keys.IC_HIST.value: ic_hist,
-			node_data_keys.COUNT_HIST.value: count_hist,
+			node_data_keys.INT_RANGES.value: int_ranges
 		}
-
-		if hasattr(self, 'int_ranges'):
-			self.node_data[node_data_keys.INT_RANGES.value] = self.int_ranges
 
 		savemat(self.node_data_fname, self.node_data)
 			
-
-	def interp_acc_hist(self, count_hist):
-		'''
-		Interpolate the accuracy histogram
-
-		:param count_hist: the number of pixels that fell within each bin
-		'''
-		assert hasattr(self, 'acc_hist'), 'Node object does not have acc hist attribute.'
-
-		count_hist = np.array(count_hist)
 		
-		# We want to interpolate where the accuracy histogram is 0 using the other bins as the reference points.
-		xs = np.argwhere(self.acc_hist == 0).ravel()
-		xp = np.argwhere(self.acc_hist > 0).ravel()
-		yp = self.acc_hist[xp]
-	
-		if count_hist[0] == 0 and self.acc_hist[0] == 0:
-			xp = np.concatenate(([0], xp))
-			yp = np.concatenate(([0], yp))
-		
-		if count_hist[-1] == 0 and self.acc_hist[-1] == 0:
-			xp = np.concatenate((xp, [len(self.acc_hist)-1]))
-			yp = np.concatenate((yp, [1]))
-
-		y_interp = np.interp(xs, xp, yp)
-		self.acc_hist[self.acc_hist == 0] = y_interp
-
-		
-	def get_conf_for_score(self, score):
-		'''
-		Get the calibrated confidence given a softmax score
-
-		:param score: the softmax score to calibrate
-		'''
-		assert isfile(self.node_data_fname)
-		
-		if getsize(self.corr_file) == 0:
-			return 0
-		
+	def get_conf_for_score(self, score):		
 		if not hasattr(self, 'node_data'):
+			assert isfile(join(self.node_data_fname))
 			self.load_node_data()
 
 		nb = len(self.acc_hist)
@@ -221,27 +160,3 @@ class Node(object):
 			acc_val -= self.int_ranges[i]
 
 		return acc_val
-				
-
-	def get_file_contents(self):
-		'''
-		Return the confidences and correct mask that the current node has seen.
-		'''
-		if not (isfile(self.conf_file) and isfile(self.corr_file)):
-			return None, None
-			
-		if getsize(self.conf_file) == 0 or getsize(self.corr_file) == 0:
-			return None, None
-			
-		return np.genfromtxt(self.conf_file), np.genfromtxt(self.corr_file).astype(np.bool)
-		
-		
-	def reset(self):
-		'''
-		Remove the confidence and correct mask files on disk.
-		'''
-		if isfile(self.conf_file):
-			os.remove(self.conf_file)
-		
-		if isfile(self.corr_file):
-			os.remove(self.corr_file)

@@ -79,12 +79,10 @@ class Node(object):
 		if not hasattr(self, attr_name):
 			setattr(self, attr_name, attr_val)
 
-
 	def load_node_data(self):
 		self.node_data = loadmat(self.node_data_fname)
 		self.acc_hist = self.node_data[node_data_keys.ACC_HIST.value]
 		self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
-
 		
 	def _accum_stats(self, n_c, c_pdf, c_ci, n_ic, ic_pdf, ic_ci):
 		add_attr_if_not_exists(self, 'n_c', 0)
@@ -116,7 +114,6 @@ class Node(object):
 		c_pdf, c_ci, n_c = density(confs, correct_mask, bins, sigma, alpha)
 		ic_pdf, ic_ci, n_ic = density(confs, 1-correct_mask, bins, sigma, alpha)
 		self._accum_stats(n_c, c_pdf, c_ci, n_ic, ic_pdf, ic_ci)
-	
 
 	def accum_node(self, node):
 		self._accum_stats(node.n_c, node.c_pdf, node.c_ci, node.n_ic, node.ic_pdf, node.ic_ci)

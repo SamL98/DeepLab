@@ -26,9 +26,10 @@ def conf_ints(pdf, count_hist, alpha):
 	pdf[mask] = new_p
 	ranges[mask] = conf_range
 
+	pdf /= np.maximum(1e-7, pdf.sum())
 	return pdf, ranges
 
-def pdf_for_confs(confs, bins, sigma=0.75):
+def pdf_for_confs(confs, bins, sigma=0.1):
 	if len(confs) == 0:
 		return np.zeros((len(bins)-1), dtype=np.float32)
 	kde = KernelDensity(kernel='gaussian', bandwidth=sigma).fit(confs[:,np.newaxis])
@@ -38,9 +39,8 @@ def pdf_for_confs(confs, bins, sigma=0.75):
 def count_hist_for_confs(confs, bins):
 	nb = len(bins)-1
 	res = 1./nb
-	count_hist = np.zeros((nb), dtype=np.int32)
 	bin_vec = np.maximum(nb-1, np.floor(confs/res).astype(np.uint8))
-	return np.histogram(bin_vec, bins=bins)[0]
+	return np.histogram(bin_vec, bins=bins*nb)[0]
 
 def density(confs, mask, bins, sigma, alpha):
 	n = mask.sum()
@@ -54,8 +54,9 @@ def density(confs, mask, bins, sigma, alpha):
 		sys.stdout.flush()
 		return None, None, None
 	pdf = pdf_for_confs(confs_masked, bins, sigma=sigma)
+	pdf = pdf / np.maximum(1e-7, pdf.sum())
 	count_hist = count_hist_for_confs(confs_masked, bins)
-	ci = conf_ints(pdf, count_hist, alpha)
+	pdf, ci = conf_ints(pdf, count_hist, alpha)
 	return pdf, ci, n
 
 class node_data_keys(Enum):
@@ -117,11 +118,7 @@ class Node(object):
 		self.c_ci = self.tot_c_ci / self.n_pdf
 		self.ic_ci = self.tot_ic_ci / self.n_pdf
 
-	def accum_pdfs(self, confs, correct_mask, nb, sigma=0.75, alpha=0.05):
-		if len(confs) != len(correct_mask):
-			print('Shape mismatch! Shapes are: ')
-			print(confs.shape, correct_mask.shape)
-			return
+	def accum_pdfs(self, confs, correct_mask, nb, sigma=0.1, alpha=0.05):
 		bins = np.linspace(0, 1, num=nb+1)
 		c_pdf, c_ci, n_c = density(confs, correct_mask, bins, sigma, alpha)
 		if c_pdf is None:
@@ -135,10 +132,9 @@ class Node(object):
 		self._accum_stats(node.n_c, node.c_pdf, node.c_ci, node.n_ic, node.ic_pdf, node.ic_ci)
 
 	def _avg_hist(self, v1, v2, n1, n2):
-		h1 = np.ceil(v1*n1)
-		h2 = np.ceil(v2*n2)
-		t = h1 + h2
-		return h1 / np.maximum(1e-7, t)
+		t = v1 + v2
+		ratio = n1.astype(np.float32) / np.maximum(1e-7, n1+n2)
+		return ratio * v1 / np.maximum(1e-7, t)
 			
 	def generate_acc_hist(self, nb):
 		attrs = ['n_c', 'n_ic', 'c_pdf', 'ic_pdf', 'c_ci', 'ic_ci']

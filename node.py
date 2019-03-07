@@ -91,12 +91,10 @@ class Node(object):
 		if not hasattr(self, attr_name):
 			setattr(self, attr_name, attr_val)
 
-
 	def load_node_data(self):
 		self.node_data = loadmat(self.node_data_fname)
 		self.acc_hist = self.node_data[node_data_keys.ACC_HIST.value]
 		self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
-
 		
 	def _accum_stats(self, n_c, c_pdf, c_ci, n_ic, ic_pdf, ic_ci):
 		self.add_attr_if_not_exists('n_c', 0)

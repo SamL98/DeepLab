@@ -5,6 +5,7 @@ from hdf5storage import loadmat, savemat
 from scipy.stats import norm
 from sklearn.neighbors.kde import KernelDensity
 from enum import Enum
+import sys
 
 '''
 Statistics Utilities
@@ -43,8 +44,15 @@ def count_hist_for_confs(confs, bins):
 
 def density(confs, mask, bins, sigma, alpha):
 	n = mask.sum()
-	print(confs.shape, mask.shape)
-	confs_masked = confs[mask]
+	mask = mask.astype(np.bool)
+	try:
+		confs_masked = confs[mask]
+	except IndexError:
+		sys.stdout.write('IndexError on conf mask\n')
+		sys.stdout.write('Confs: ' + confs.__repr__() + '\n')
+		sys.stdout.write('Mask: ' + mask.__repr__() + '\n')
+		sys.stdout.flush()
+		return None, None, None
 	pdf = pdf_for_confs(confs_masked, bins, sigma=sigma)
 	count_hist = count_hist_for_confs(confs_masked, bins)
 	ci = conf_ints(pdf, count_hist, alpha)
@@ -115,12 +123,19 @@ class Node(object):
 		self.ic_ci = self.tot_ic_ci / self.n_pdf
 
 	def accum_pdfs(self, confs, correct_mask, nb, sigma=0.75, alpha=0.05):
+		if len(confs) != len(correct_mask):
+			print('Shape mismatch! Shapes are: ')
+			print(confs.shape, correct_mask.shape)
+			return
 		bins = np.linspace(0, 1, num=nb+1)
 		c_pdf, c_ci, n_c = density(confs, correct_mask, bins, sigma, alpha)
+		if c_pdf is None:
+			return
 		ic_pdf, ic_ci, n_ic = density(confs, 1-correct_mask, bins, sigma, alpha)
+		if ic_pdf is None:
+			return
 		self._accum_stats(n_c, c_pdf, c_ci, n_ic, ic_pdf, ic_ci)
 	
-
 	def accum_node(self, node):
 		self._accum_stats(node.n_c, node.c_pdf, node.c_ci, node.n_ic, node.ic_pdf, node.ic_ci)
 
@@ -148,7 +163,6 @@ class Node(object):
 
 		savemat(self.node_data_fname, self.node_data)
 			
-		
 	def get_conf_for_score(self, score):		
 		if not hasattr(self, 'node_data'):
 			assert isfile(join(self.node_data_fname))

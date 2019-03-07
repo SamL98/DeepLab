@@ -61,9 +61,6 @@ def density(confs, mask, bins, sigma, alpha):
 
 class node_data_keys(Enum):
 	ACC_HIST = 'acc_hist'
-	C_HIST = 'c_hist'
-	IC_HIST = 'ic_hist'
-	COUNT_HIST = 'count_hist'
 	INT_RANGES = 'int_ranges'
 	
 

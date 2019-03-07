@@ -146,7 +146,7 @@ def read_slices(fname, reset=False):
 	if reset:
 		for slc in slices:
 			for node in slc:
-				node.reset()
+				#node.reset()
 				node.__init__(node.name, node.node_idx, node.terminals, is_main=True)
 	return slices
 

@@ -86,7 +86,7 @@ def aggregate_proc_confs(proc_slices, slices, args):
 
 				node.accum_node(proc_node)
 
-			node.generate_add_hist(args.nb)
+			node.generate_acc_hist(args.nb)
 
 	return slices
 

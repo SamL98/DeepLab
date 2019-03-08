@@ -16,8 +16,8 @@ def poolcontext(num_proc):
 def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, sm_by_slice=True):
 	res = 1./nb
 	
-	logits = load_logits(imset, idx, reshape=False)
-	logits = logits.reshape(-1, 21)
+	logits = load_logits(imset, idx, reshape=True)
+	terminal_pred = np.argmax(logits, axis=-1)
 
 	gt = load_gt(imset, idx, reshape=False)
 	predicted_mask = np.zeros(gt.shape, dtype=np.uint8)
@@ -46,8 +46,8 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, sm_by_slice
 			else:
 				slc_sm = remap_scores(score_vec, slc)
 
-			# Get the predicted label (index within the cluster)
-			pred_label = np.argmax(slc_sm)
+			# Remap the terminal prediction to the slice
+			pred_label = remap_gt(terminal_pred, slc)
 
 			node = slc[pred_label]
 			calib_conf = node.get_conf_for_score(slc_sm[pred_label])
@@ -59,6 +59,7 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh=0.75, sm_by_slice
 				else:
 					confident_label = node.node_idx
 
+				# Break if we are confident enough
 				break
 
 		r, c = np.unravel_index(pix_idx, predicted_mask.shape)

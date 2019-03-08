@@ -16,28 +16,28 @@ def poolcontext(num_proc):
 
 # Get the confograms for the given logits and ground truth labels
 def confs_for_pixels(logits, gt, slices, args):
+	terminal_pred = np.argmax(logits, axis=-1)
+
 	# If we are not taking the softmax by slice, take the softmax once and be done with it
 	if not args.sm_by_slice:
 		sm = sm_of_logits(logits, start_idx=1, zero_pad=True)
 
 	for i, slc in enumerate(slices):
-		# Remap the ground truth to the local labels of the current slice
+		# Remap the terminal predictions to the local labels of the current slice
 		slc_gt = np.array([remap_gt(lab, slc) for lab in gt])
-		
-		# If we are taking the softmax by slice, remap the logits then take the softmax
-		#
-		# Otherwise, just remap the softmax previously computed
+
+		# Remap the ground truth to the local labels of the current slice
+		slc_term_pred = np.array([remap_gt(pred, slc) for pred in gt])
+
 		if args.sm_by_slice:
 			slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
 			slc_sm = sm_of_logits(slc_logits)
 		else:
 			slc_sm = np.array([remap_scores(sm_vec, slc) for sm_vec in sm])
 
-			
 		for j, node in enumerate(slc):
-			# Since we are measuring precision in the calibration confograms, mask the ground truth and softmax by where the current node is softmax
-			pred_labels = np.argmax(slc_sm, axis=-1)
-			argmax_mask = pred_labels == j
+			# Create a mask of where the terminal prediction was this label
+			argmax_mask = slc_term_pred == j
 
 			slc_gt_masked = slc_gt[argmax_mask]
 			slc_sm_masked = slc_sm[argmax_mask]

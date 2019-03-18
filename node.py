@@ -31,9 +31,9 @@ def conf_ints(pdf, count_hist, alpha):
 def parzen_estimate(confs, bins, sigma):
     parzen = np.zeros_like(bins)
     for i, bn in enumerate(bins):
-        z = (sm - bn) / sigma
+        z = (confs - bn) / sigma
         parzen[i] = (np.exp(-z**2 / 2)).sum()
-    return np.round(parzen / np.maximum(1e-7, parzen.sum()) * len(sm))
+    return np.round(parzen / np.maximum(1e-7, parzen.sum()) * len(confs))
 
 class node_data_keys(Enum):
     C_HIST = 'c_hist'
@@ -76,8 +76,8 @@ class Node(object):
     def _accum_stats(self, n_c, c_hist, n, tot_hist):
         self.add_attr_if_not_exists('n_c', 0)
         self.add_attr_if_not_exists('n', 0)
-        self.add_attr_if_not_exists('c_hist', np.zeros_like(c_pdf))
-        self.add_attr_if_not_exists('tot_hist', np.zeros_like(c_pdf))
+        self.add_attr_if_not_exists('c_hist', np.zeros_like(c_hist))
+        self.add_attr_if_not_exists('tot_hist', np.zeros_like(tot_hist))
 
         self.n_c += n_c
         self.n += n

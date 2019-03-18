@@ -24,10 +24,10 @@ def confs_for_pixels(logits, gt, slices, args):
 
 	for i, slc in enumerate(slices):
 		# Remap the terminal predictions to the local labels of the current slice
-		slc_gt = np.array([remap_gt(lab, slc) for lab in gt])
+		slc_gt = np.array([remap_label(lab, slc) for lab in gt])
 
 		# Remap the ground truth to the local labels of the current slice
-		slc_term_pred = np.array([remap_gt(pred, slc) for pred in gt])
+		slc_term_pred = np.array([remap_label(pred, slc) for pred in terminal_pred])
 
 		if args.sm_by_slice:
 			slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
@@ -37,16 +37,16 @@ def confs_for_pixels(logits, gt, slices, args):
 
 		for j, node in enumerate(slc):
 			# Create a mask of where the terminal prediction was this label
-			argmax_mask = slc_term_pred == j
+			pred_mask = slc_term_pred == j
 
-			slc_gt_masked = slc_gt[argmax_mask]
-			slc_sm_masked = slc_sm[argmax_mask]
+			slc_gt_masked = slc_gt[pred_mask]
+			slc_sm_masked = slc_sm[pred_mask]
 
-			# Because of the previous mask, the j-th softmax value will always be the max
+			# Because of the previous mask, the j-th softmax value will always be the predicted softmax score
 			sm_conf = slc_sm_masked[:,j]
 
 			# Save the confidence of each pixel as well as whether it was correct to disk
-			node.accum_pdfs(sm_conf, slc_gt_masked == j, args.nb)
+			node.accum_scores(sm_conf, slc_gt_masked == j, args.nb, args.sigma)
 
 	return slices
 
@@ -86,7 +86,7 @@ def aggregate_proc_confs(proc_slices, slices, args):
 
 				node.accum_node(proc_node)
 
-			node.generate_acc_hist(args.nb)
+			node.generate_acc_hist(args.nb, args.alpha)
 
 	return slices
 
@@ -96,6 +96,8 @@ parser = ArgumentParser(description='Build the calibration hierarchy using multi
 parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
 parser.add_argument('--imset', dest='imset', type=str, default='val', help='The image set to build the calibration confograms from. Either val or test')
 parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='The number of processes to spawn to parallelize calibration.')
+parser.add_argument('--sigma', dest='sigma', type=float, default=0.1, help='The bandwidth for parzen estimation.')
+parser.add_argument('--alpha', dest='alpha', type=float, default=0.05, help='The confidence for the wilson interval.')
 parser.add_argument('--nb', dest='nb', type=int, default=100, help='The number of bins in the calibration histogram.')
 parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 parser.add_argument('--dont_reset', dest='reset', action='store_false', help='Pass if you want to accumulate calibration confograms. Normally they are reset when this script is run.')
@@ -110,43 +112,13 @@ if __name__ == '__main__':
 	if not isdir(args.data_dir):
 		os.mkdir(args.data_dir)
 
-	# Load the slices from the specified file
-
 	slices = read_slices(args.slice_file, reset=args.reset)
-
-	# Load the index ordering -- indexes are ordered by number of foreground pixels in descending order
-	#
-	# This way, if multiprocessing is used, all processes will be given approximately the same workload
-
-	idx_ordering = None
-	idx_ordering_fname = args.imset.lower() + '_ordered.txt'
-
-	if not isfile(idx_ordering_fname):
-		from order_by_num_fg import order_imset_by_num_fg
-		idx_ordering = order_imset_by_num_fg(args.imset, save=True)
-	else:
-		with open(idx_ordering_fname) as f:
-			idx_ordering = [int(idx) for idx in f.read().split('\n')]
-			
-			
-	if args.test:
-		idx_ordering = idx_ordering[:args.num_proc]
-
-	# Split the indexes up between processed to try and spread the work evenly
-
-	idx_ordering = np.array(idx_ordering)
-	param_batches = []
-
-	for procno in range(args.num_proc):
-		idx_batch = idx_ordering[procno::args.num_proc]
-		param_batches.append((idx_batch, slices.copy(), args))
+	param_batches = get_param_batches(slices, args)
 
 	with poolcontext(args.num_proc) as p:
 		proc_slices = p.map(get_confs_for_idxs_unpack, param_batches)
 
 	slices = aggregate_proc_confs(proc_slices, slices, args)
-
-	# Save the calibration data
 
 	output_fname = args.output_file
 	if output_fname is None:

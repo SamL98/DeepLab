@@ -1,8 +1,9 @@
 import pickle
 import numpy as np
 from hdf5storage import loadmat, savemat
+from contextlib import contextmanager
 from skimage.io import imread
-from os.path import join, isfile
+from os.path import join, isfile, isdir
 import os
 
 from node import Node
@@ -11,9 +12,11 @@ ds_path = 'D:/datasets/processed/voc2012'
 if 'DS_PATH' in os.environ:
 	ds_path = os.environ['DS_PATH']
 
-ds_info = loadmat(join(ds_path, 'dataset_info.mat'))
-classes = ds_info['class_labels'][:-1]
-nc = len(classes)-1
+ds_info_fname = join(ds_path, 'dataset_info.mat')
+if isfile(ds_info_fname):
+	ds_info = loadmat(ds_info_fname)
+	classes = ds_info['class_labels'][:-1]
+	nc = len(classes)-1
 
 
 '''
@@ -58,19 +61,23 @@ def load_dl_pred(imset, idx):
 	
 	return loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_prediction.mat') % idx)['pred_img']
 	
-def load_calib_pred(imset, idx, conf):
+def load_calib_pred(imset, idx, conf, name):
 	global ds_path
 	
-	fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf)
+	fname = join(ds_path, 'deeplab_prediction', imset, name, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf)
 	if not isfile(fname):
 		return None
 		
 	return loadmat(fname)['pred_img']
 
-def save_calib_pred(imset, idx, pred, conf):
+def save_calib_pred(imset, idx, pred, conf, name):
 	global ds_path
-	
-	savemat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf), {'pred_img': pred})
+
+	pred_dir = join(ds_path, 'deeplab_prediction', imset, name)
+	if not isdir(pred_dir):
+		os.mkdir(pred_dir)
+
+	savemat(join(pred_dir, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf), {'pred_img': pred})
 	
 
 '''
@@ -163,7 +170,7 @@ def confidence_for_node(vec, node):
 	"""
 	return vec[node.terminals].sum()
 
-def remap_gt(true_label, slc):
+def remap_label(true_label, slc):
 	"""
 	Remaps a ground truth terminal label to a truth label within a slice
 
@@ -185,3 +192,36 @@ def remap_scores(vec, slc):
 	for node in slc:
 		conf.append(confidence_for_node(vec, node))
 	return np.array(conf)
+
+
+
+'''
+Multiprocessing Utilities
+'''
+
+@contextmanager
+def poolcontext(num_proc):
+    pool = mp.Pool(num_proc)
+    yield pool
+    pool.terminate()
+
+def get_param_batches(slices, args):
+	idx_ordering = None
+	idx_ordering_fname = args.imset.lower() + '_ordered.txt'
+
+	if not isfile(idx_ordering_fname):
+		from order_by_num_fg import order_imset_by_num_fg
+		idx_ordering = order_imset_by_num_fg(args.imset, save=True)
+	else:
+		with open(idx_ordering_fname) as f:
+			idx_ordering = [int(idx) for idx in f.read().split('\n')]
+
+	idx_ordering = np.array(idx_ordering)
+	param_batches = []
+
+	for procno in range(args.num_proc):
+		idx_batch = idx_ordering[procno::args.num_proc]
+		param_batches.append((idx_batch, slices.copy(), args))
+
+	return param_batches
+	

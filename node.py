@@ -9,24 +9,34 @@ import sys
 '''
 Statistics Utilities
 '''
-def conf_ints(pdf, count_hist, alpha):
+def conf_ints(acc_hist, count_hist, alpha):
     mask = count_hist > 0
-    ranges = np.zeros_like(pdf)
+    ranges = np.zeros_like(acc_hist)
 
-    p, n = pdf[mask], count_hist[mask]
+    p, n = acc_hista[mask], count_hist[mask]
     
     z = norm.ppf(1 - alpha/2)
     pq = p * (1 - p)
     zn = z**2 / (4*n)
+	
+	if (pq < 0).sum() > 0:
+		sys.stdout.write('PQ < 0: ' + pq.__repr__()  '\n')
+		sys.stdout.flush()
+		exit()
+		
+	if (n <= 0).sum() > 0:
+		sys.stdout.write('n <= 0: ' + n.__repr__() + '\n')
+		sys.stdout.flush()
+		exit()
 
     conf_range = z * np.sqrt((pq + zn) / n) / (1 + zn*4)
     new_p = (p + zn*2) / (1 + zn*4)
 
-    pdf[mask] = new_p
+    acc_hist[mask] = new_p
     ranges[mask] = conf_range
 
-    pdf /= np.maximum(1e-7, pdf.sum())
-    return pdf, ranges
+    acc_hist /= np.maximum(1e-7, pdf.sum())
+    return acc_hist, ranges
 
 def parzen_estimate(confs, bins, sigma):
     parzen = np.zeros_like(bins)
@@ -73,14 +83,9 @@ class Node(object):
         self.tot_hist = self.node_data[node_data_keys.TOT_HIST.value]
         self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
         
-    def _accum_stats(self, n_c, c_hist, n, tot_hist):
-        self.add_attr_if_not_exists('n_c', 0)
-        self.add_attr_if_not_exists('n', 0)
+    def _accum_stats(self, c_hist, tot_hist):
         self.add_attr_if_not_exists('c_hist', np.zeros_like(c_hist))
         self.add_attr_if_not_exists('tot_hist', np.zeros_like(tot_hist))
-
-        self.n_c += n_c
-        self.n += n
 
         self.c_hist += c_hist
         self.tot_hist += tot_hist
@@ -89,18 +94,20 @@ class Node(object):
         bins = np.linspace(0, 1, num=nb+1)
         c_hist = parzen_estimate(confs[correct_mask], bins, sigma)
         tot_hist = parzen_estimate(confs, bins, sigma)
-        self._accum_stats(correct_mask.sum(), c_hist, len(correct_mask), tot_hist)
+        self._accum_stats(c_hist, tot_hist)
     
     def accum_node(self, node):
-        self._accum_stats(node.n_c, node.c_hist, node.n, node.tot_hist)
+        self._accum_stats(node.c_hist, node.tot_hist)
             
     def generate_acc_hist(self, nb, alpha):
-        attrs = ['n_c', 'n', 'c_hist', 'tot_hist']
+        attrs = ['c_hist', 'tot_hist']
         for attr in attrs:
             if not hasattr(self, attr): return
         
-        self.acc_hist = self.c_hist.astype(np.float32) / np.maximum(1e-7, self.tot_hist.astype(np.float32))
-        self.int_ranges = conf_ints(self.acc_hist, self.tot_hist, alpha)
+        acc_hist = self.c_hist.astype(np.float32) / np.maximum(1e-7, self.tot_hist.astype(np.float32))
+        acc_hist, int_ranges = conf_ints(acc_hist, self.tot_hist, alpha)
+		self.acc_hist = acc_hist
+		self.int_ranges = int_ranges
 
         self.node_data = {
             node_data_keys.ACC_HIST.value: self.acc_hist,

@@ -37,7 +37,7 @@ def parzen_estimate(confs, bins, sigma):
 
 class node_data_keys(Enum):
     C_HIST = 'c_hist'
-    T_HIST = 't_hist'
+    TOT_HIST = 'tot_hist'
     ACC_HIST = 'acc_hist'
     INT_RANGES = 'int_ranges'
     
@@ -70,7 +70,7 @@ class Node(object):
         self.node_data = loadmat(self.node_data_fname)
         self.acc_hist = self.node_data[node_data_keys.ACC_HIST.value]
         self.c_hist = self.node_data[node_data_keys.C_HIST.value]
-        self.t_hist = self.node_data[node_data_keys.T_HIST.value]
+        self.tot_hist = self.node_data[node_data_keys.TOT_HIST.value]
         self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
         
     def _accum_stats(self, n_c, c_hist, n, tot_hist):
@@ -105,7 +105,7 @@ class Node(object):
         self.node_data = {
             node_data_keys.ACC_HIST.value: self.acc_hist,
             node_data_keys.C_HIST.value: self.c_hist,
-            node_data_keys.T_HIST.value: self.tot_hist,
+            node_data_keys.TOT_HIST.value: self.tot_hist,
             node_data_keys.INT_RANGES.value: self.int_ranges
         }
 

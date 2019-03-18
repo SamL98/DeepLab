@@ -19,15 +19,15 @@ def conf_ints(acc_hist, count_hist, alpha):
     pq = p * (1 - p)
     zn = z**2 / (4*n)
 	
-	if (pq < 0).sum() > 0:
-		sys.stdout.write('PQ < 0: ' + pq.__repr__()  '\n')
-		sys.stdout.flush()
-		exit()
+    if (pq < 0).sum() > 0:
+        sys.stdout.write('PQ < 0: ' + pq.__repr__()  '\n')
+        sys.stdout.flush()
+        exit()
 		
-	if (n <= 0).sum() > 0:
-		sys.stdout.write('n <= 0: ' + n.__repr__() + '\n')
-		sys.stdout.flush()
-		exit()
+    if (n <= 0).sum() > 0:
+        sys.stdout.write('n <= 0: ' + n.__repr__() + '\n')
+        sys.stdout.flush()
+        exit()
 
     conf_range = z * np.sqrt((pq + zn) / n) / (1 + zn*4)
     new_p = (p + zn*2) / (1 + zn*4)

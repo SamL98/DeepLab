@@ -20,7 +20,7 @@ def conf_ints(acc_hist, count_hist, alpha):
     zn = z**2 / (4*n)
 	
     if (pq < 0).sum() > 0:
-        sys.stdout.write('PQ < 0: ' + pq.__repr__()  '\n')
+        sys.stdout.write('PQ < 0: ' + pq.__repr__() + '\n')
         sys.stdout.flush()
         exit()
 		

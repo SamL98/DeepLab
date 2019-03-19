@@ -6,6 +6,7 @@
 /__pycache__/
 /VOCdevkit/
 /calib_data/
+/calib_data_*/
 *.mat
 *.png
 *.zip

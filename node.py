@@ -33,7 +33,6 @@ def conf_ints(acc_hist, count_hist, alpha):
 	acc_hist[mask] = new_p
 	ranges[mask] = conf_range
 
-	# acc_hist /= np.maximum(1e-7, acc_hist.sum())
 	return acc_hist, ranges
 
 def parzen_estimate(confs, bins, sigma):

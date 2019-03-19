@@ -1,10 +1,12 @@
 /cache_data/
+/notebooks/
 /model_trained/
 /datasets/
 /acc_hists/
 /__pycache__/
 /VOCdevkit/
 /calib_data/
+/calib_data_*/
 *.mat
 *.png
 *.zip

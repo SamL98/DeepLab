@@ -13,29 +13,26 @@ def conf_ints(acc_hist, count_hist, alpha):
 	mask = count_hist > 0
 	ranges = np.zeros_like(acc_hist)
 
-	p, n = acc_hista[mask], count_hist[mask]
+	p, n = acc_hist[mask], count_hist[mask]
 	
 	z = norm.ppf(1 - alpha/2)
 	pq = p * (1 - p)
 	zn = z**2 / (4*n)
 	
 	if (pq < 0).sum() > 0:
-		sys.stdout.write('PQ < 0: ' + pq.__repr__() + '\n')
-		sys.stdout.flush()
-		exit()
-		
-	if (n <= 0).sum() > 0:
-		sys.stdout.write('n <= 0: ' + n.__repr__() + '\n')
+		sys.stdout.write('acc_hist: ' + acc_hist.__repr__() + '\n')
 		sys.stdout.flush()
 		exit()
 
 	conf_range = z * np.sqrt((pq + zn) / n) / (1 + zn*4)
 	new_p = (p + zn*2) / (1 + zn*4)
 
+	conf_range = np.clip(conf_range, 0, new_p)
+	conf_range = np.minimum(conf_range, 1-new_p)
+
 	acc_hist[mask] = new_p
 	ranges[mask] = conf_range
 
-	acc_hist /= np.maximum(1e-7, pdf.sum())
 	return acc_hist, ranges
 
 def parzen_estimate(confs, bins, sigma):
@@ -105,6 +102,7 @@ class Node(object):
 			if not hasattr(self, attr): return
 		
 		acc_hist = self.c_hist.astype(np.float32) / np.maximum(1e-7, self.tot_hist.astype(np.float32))
+		acc_hist = np.minimum(1, acc_hist)
 		acc_hist, int_ranges = conf_ints(acc_hist, self.tot_hist, alpha)
 		self.acc_hist = acc_hist
 		self.int_ranges = int_ranges
@@ -116,6 +114,8 @@ class Node(object):
 			node_data_keys.INT_RANGES.value: self.int_ranges
 		}
 
+		sys.stdout.write('Saving %s data\n' % self.name)
+		sys.stdout.flush()
 		savemat(self.node_data_fname, self.node_data)
 			
 	def get_conf_for_score(self, score):		

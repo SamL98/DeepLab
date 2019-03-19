@@ -1,5 +1,4 @@
 import numpy as np
-import multiprocessing as mp
 from hdf5storage import loadmat, savemat
 from os.path import join
 import sys
@@ -30,9 +29,9 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 		slc_scores = np.zeros((len(logits), len(slc)), dtype=np.float32)
 		pred_labels = np.zeros((len(logits)), dtype=np.uint8)
 
-		for i, (score_vec, term_pred) in zip(scores, term_pred):
+		for i, (score_vec, term_pred) in enumerate(zip(scores, terminal_preds)):
 			slc_scores[i] = remap_scores(score_vec, slc)
-			pred_labels[i] = remap_gt(term_pred, slc)
+			pred_labels[i] = remap_label(term_pred, slc)
 
 		if sm_by_slice:
 			slc_sm = sm_of_logits(slc_scores)
@@ -59,7 +58,7 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 				slc_sm = remap_scores(score_vec, slc)
 
 			# Remap the terminal prediction to the slice
-			pred_label = remap_gt(terminal_pred, slc)
+			pred_label = remap_label(terminal_pred, slc)
 
 			node = slc[pred_label]
 			calib_conf = node.get_conf_for_score(slc_sm[pred_label])
@@ -86,15 +85,15 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 def calibrate_logits_unpack(params):
 	idx_batch, slices, args = params
 	for idx in idx_batch:
-		calibrate_logits(idx, imset, slices, args.nb, args.save, args.conf_thresh, args.sm_by_slice, args.name)
+		calibrate_logits(idx, args.imset, slices, args.nb, args.save, args.conf_thresh, args.sm_by_slice, args.name)
 	
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Build the calibration hierarchy using multiprocessing.')
 parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
 parser.add_argument('--imset', dest='imset', type=str, default='test', help='The image set to build the calibration histograms from. Either val or test')
-parser.add_argument('--num_proc', dest='num_proc', type=int, default=1, help='The number of processes to spawn to parallelize calibration.')
+parser.add_argument('--num_proc', dest='num_proc', type=int, default=8, help='The number of processes to spawn to parallelize calibration.')
 parser.add_argument('--save', dest='save', action='store_false', help='Whether or not to save the inference results.')
-parser.add_argument('--conf_thresh', dest='conf_thresh', type=float, default=0.7, help='The confidence threshold for inference.')
+parser.add_argument('--conf_thresh', dest='conf_thresh', type=float, default=0.75, help='The confidence threshold for inference.')
 parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
 parser.add_argument('--name', dest='name', type=str, help='The name of the current method.')
 

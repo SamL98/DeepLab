@@ -5,52 +5,16 @@ import sys
 
 from util import *
 
+# For each slice:
+#
+# Generate the confident mask and predictions for that slice
+# 
+# On first slice, conf_mask will have same length as pred_mask
+#
+# Then mask logits, gt, and pred_mask by unconf_mask
+
 def generate_calibrated_mask(res, nb, slc_idx, slices, scores, gt, term_preds, conf_thresh, sm_by_slice):
-	predicted_mask = np.zeros_like(gt)
-	if slc_idx == len(slices)-1: return predicted_mask
-
-	slc = slices[slc_idx]
-
-	# Create a table for calibration where each row is the accuracy histogram for that node
-	calib_table = []
-	for node in slc:
-		calib_table.append(node.get_conf_acc_hist())
-	calib_table = np.array(calib_table)
-
-	# Remap the logits or softmax and terminal predictions to the current slice
-	slc_scores = np.zeros((len(scores), len(slc)), dtype=np.float32)
-	slc_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
-	slc_term_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
-
-	for i, (score_vec, term_pred) in enumerate(zip(scores, term_preds)):
-		slc_scores[i] = remap_scores(score_vec, slc)
-		slc_pred_labels[i] = remap_label(term_pred, slc)
-		slc_term_pred_labels[i] = remap_label(term_pred, slc, push_down=True)
-
-	if sm_by_slice: slc_sm = sm_of_logits(slc_scores)
-	else: slc_sm = slc_scores
-
-	# Obtain the calibrated confidence for every logit on the forced path
-	#
-	# This is what got me before but it's only because I was incrementing
-	binvec = np.floor(slc_sm[:,slc_pred_labels]/res).astype(np.int16)
-	binvec = np.minimum(binvec, nb-1)
-	confs = calib_table[slc_pred_labels, binvec]
-
-	conf_mask = confs > conf_thresh
-	predicted_mask[conf_mask] = slc_term_pred_labels[conf_mask]
-
-	unconf_mask = (not conf_mask)
-	if unconf_mask.sum() == 0:
-		return predicted_mask
-
-	scores = scores[unconf_mask]
-	gt = gt[unconf_mask]
-	term_preds = term_preds[unconf_mask]
-	predicted_mask[unconf_mask] = generate_calibrated_mask(res, nb, 
-														   slc_idx+1, slices, 
-														   scores, gt, term_preds, 
-														   conf_thresh, sm_by_slice)
+	
 
 def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, name):
 	logits = load_logits(imset, idx, reshape=True)
@@ -58,7 +22,7 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 	mask_shape = gt.shape
 
 	gt = gt.ravel()
-	predicted_mask = np.zeros_like(gt)
+	pred_mask = np.zeros_like(gt)
 
 	fg_mask = fg_mask_for(gt)
 	logits = logits[fg_mask]
@@ -66,19 +30,53 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 
 	term_preds = np.argmax(logits[:,1:], -1) + 1
 
+	tot_mask = fg_mask
+
 	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
 	else: scores = logits
 
-	predicted_mask[fg_mask] = generate_calibrated_mask(1./nb, nb, 
-											  0, slices, 
-											  scores, gt, term_preds, 
-											  conf_thresh, sm_by_slice)
-	predicted_mask = predicted_mask.reshape(mask_shape)
-	
-	if save:
-		save_calib_pred(imset, idx, predicted_mask, conf_thresh, name)
+	for slc in slices:
+		# Create a table for calibration where each row is the accuracy histogram for that node
+		calib_table = []
+		for node in slc:
+			calib_table.append(node.get_conf_acc_hist())
+		calib_table = np.array(calib_table)
 
-	return predicted_mask
+		# Remap the logits or softmax and terminal predictions to the current slice
+		slc_scores = np.zeros((len(scores), len(slc)), dtype=np.float32)
+		slc_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
+		slc_term_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
+
+		for i, (score_vec, term_pred) in enumerate(zip(scores, term_preds)):
+			slc_scores[i] = remap_scores(score_vec, slc)
+			slc_pred_labels[i] = remap_label(term_pred, slc)
+			slc_term_pred_labels[i] = remap_label(term_pred, slc, push_down=True)
+
+		if sm_by_slice: slc_sm = sm_of_logits(slc_scores)
+		else: slc_sm = slc_scores
+
+		# Obtain the calibrated confidence for every logit on the forced path
+		# Not buggy, only buggy before with binvec because of increment
+		binvec = np.floor(slc_sm[:,slc_pred_labels]/res).astype(np.int16)
+		binvec = np.minimum(binvec, nb-1)
+		confs = calib_table[slc_pred_labels, binvec]
+
+		conf_mask = confs >= conf_thresh
+		tot_mask = np.where(tot_mask)[0][conf_mask]
+		pred_mask[tot_mask] = slc_term_pred_labels[conf_mask]
+
+		unconf_mask = (not conf_mask)
+		if unconf_mask.sum() == 0:
+			return predicted_mask
+
+		scores = scores[unconf_mask]
+		gt = gt[unconf_mask]
+		term_preds = term_preds[unconf_mask]
+		
+	pred_mask = pred_mask.reshape(mask_shape)
+	if save: 
+		save_calib_pred(imset, idx, pred_mask, conf_thresh, name)
+	return pred_mask
 	
 	
 def calibrate_logits_unpack(params):

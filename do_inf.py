@@ -5,17 +5,6 @@ import sys
 
 from util import *
 
-# For each slice:
-#
-# Generate the confident mask and predictions for that slice
-# 
-# On first slice, conf_mask will have same length as pred_mask
-#
-# Then mask logits, gt, and pred_mask by unconf_mask
-
-def generate_calibrated_mask(res, nb, slc_idx, slices, scores, gt, term_preds, conf_thresh, sm_by_slice):
-	
-
 def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, name):
 	logits = load_logits(imset, idx, reshape=True)
 	gt = load_gt(imset, idx, reshape=False)
@@ -28,8 +17,10 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 	logits = logits[fg_mask]
 	gt = gt[fg_mask]
 
+	# Get the DeepLab terminal predictions, ignoring background
 	term_preds = np.argmax(logits[:,1:], -1) + 1
 
+	# The total mask will be the mask into pred_mask
 	tot_mask = fg_mask
 
 	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
@@ -62,6 +53,8 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 		confs = calib_table[slc_pred_labels, binvec]
 
 		conf_mask = confs >= conf_thresh
+
+		# np.where returns a tuple so get the first element (tot_mask is 1d)
 		tot_mask = np.where(tot_mask)[0][conf_mask]
 		pred_mask[tot_mask] = slc_term_pred_labels[conf_mask]
 

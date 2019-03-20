@@ -21,7 +21,7 @@ if isfile(ds_info_fname):
 	nc = len(classes)-1
 
 
-def sys_writeln(string):
+def stdout_writeln(string):
 	sys.stdout.write(string + '\n')
 	sys.stdout.flush()
 

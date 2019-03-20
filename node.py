@@ -136,7 +136,7 @@ class Node(object):
 		acc_val = self.acc_hist[binno]
 
 		if hasattr(self, 'int_ranges'):
-			acc_val -= self.int_ranges[i]
+			acc_val -= self.int_ranges[binno]
 
 		return acc_val
 

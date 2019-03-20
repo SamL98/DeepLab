@@ -132,11 +132,11 @@ class Node(object):
 
 		nb = len(self.acc_hist)
 		res = 1./nb
-		binno = np.floor(score/res)
+		binno = int(np.floor(score/res))
 		acc_val = self.acc_hist[binno]
 
 		if hasattr(self, 'int_ranges'):
-			acc_val -= self.int_ranges[i]
+			acc_val -= self.int_ranges[binno]
 
 		return acc_val
 

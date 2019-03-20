@@ -8,14 +8,16 @@ from util import *
 def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, name):
 	logits = load_logits(imset, idx, reshape=True)
 	gt = load_gt(imset, idx, reshape=False)
-	mask_shape = gt.shape
+	orig_shape = gt.shape
 
 	gt = gt.ravel()
-	pred_mask = np.zeros_like(gt)
+	tot_pred_mask = np.zeros_like(gt)
 
 	fg_mask = fg_mask_for(gt)
 	logits = logits[fg_mask]
 	gt = gt[fg_mask]
+
+	fg_pred_mask = np.zeros_like(gt)
 
 	# Get the DeepLab terminal predictions, ignoring background
 	term_preds = np.argmax(logits[:,1:], -1) + 1
@@ -31,16 +33,17 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 			else: slc_sm = slc_score
 
 			slc_pred_lab = remap_label(term_pred, slc)
-			slc_term_pred_lab = remap_label(term_pred, push_down=True)
+			slc_term_pred_lab = remap_label(term_pred, slc, push_down=True)
 
 			node = slc[slc_pred_lab]
-			conf = node.get_confs_for_score(slc_sm)
+			conf = node.get_conf_for_score(slc_sm[slc_pred_lab])
 
 			if conf >= conf_thresh:
-				pred_mask[pix_idx] = slc_term_pred_lab
+				fg_pred_mask[pix_idx] = slc_term_pred_lab
 				break
 		
-	pred_mask = pred_mask.reshape(mask_shape)
+	tot_pred_mask[fg_mask] = fg_pred_mask
+	tot_pred_mask = tot_pred_mask.reshape(orig_shape)
 	if save: 
 		save_calib_pred(imset, idx, pred_mask, conf_thresh, name)
 	return pred_mask

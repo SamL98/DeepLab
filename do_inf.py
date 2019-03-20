@@ -33,7 +33,7 @@ def generate_calibrated_mask(res, nb, slc_idx, slices, scores, gt, term_preds, c
 	# Obtain the calibrated confidence for every logit on the forced path
 	#
 	# This is what got me before but it's only because I was incrementing
-	binvec = np.floor(slc_sm/res).astype(np.int16)
+	binvec = np.floor(slc_sm[slc_pred_labels]/res).astype(np.int16)
 	binvec = np.minimum(binvec, nb-1)
 	confs = calib_table[slc_pred_labels, binvec]
 

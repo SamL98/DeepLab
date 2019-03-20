@@ -31,10 +31,10 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 			else: slc_sm = slc_score
 
 			slc_pred_lab = remap_label(term_pred, slc)
-			slc_term_pred_lab = remap_label(term_pred, push_down=True)
+			slc_term_pred_lab = remap_label(term_pred, slc, push_down=True)
 
 			node = slc[slc_pred_lab]
-			conf = node.get_confs_for_score(slc_sm)
+			conf = node.get_conf_for_score(slc_sm[slc_pred_lab])
 
 			if conf >= conf_thresh:
 				pred_mask[pix_idx] = slc_term_pred_lab

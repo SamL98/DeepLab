@@ -64,10 +64,10 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 	logits = logits[fg_mask]
 	gt = gt[fg_mask]
 
-	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
-	else: scores = logits[:,1:]
+	term_preds = np.argmax(logits[:,1:], -1) + 1
 
-	term_preds = np.argmax(logits, -1) + 1
+	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
+	else: scores = logits
 
 	predicted_mask[fg_mask] = generate_calibrated_mask(1./nb, nb, 
 											  0, slices, 

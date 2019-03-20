@@ -1,22 +1,13 @@
 import numpy as np
-import multiprocessing as mp
-from contextlib import contextmanager
 from hdf5storage import loadmat, savemat
 from os.path import join, isfile, isdir
 import os
 
 from util import *
 
-# Pool the a function across multiple inputs and wait for them to complete
-@contextmanager
-def poolcontext(num_proc):
-    pool = mp.Pool(num_proc)
-    yield pool
-    pool.terminate()
-
 # Get the confograms for the given logits and ground truth labels
 def confs_for_pixels(logits, gt, slices, args):
-	terminal_pred = np.argmax(logits, axis=-1)
+	terminal_pred = np.argmax(logits[:,1:], axis=-1) + 1
 
 	# If we are not taking the softmax by slice, take the softmax once and be done with it
 	if not args.sm_by_slice:

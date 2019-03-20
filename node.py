@@ -117,6 +117,13 @@ class Node(object):
 		sys.stdout.write('Saving %s data\n' % self.name)
 		sys.stdout.flush()
 		savemat(self.node_data_fname, self.node_data)
+
+	def get_conf_acc_hist(self):
+		if not hasattr(self, 'node_data'):
+			assert isfile(join(self.node_data_fname))
+			self.load_node_data()
+
+		return self.acc_hist - self.int_ranges
 			
 	def get_conf_for_score(self, score):		
 		if not hasattr(self, 'node_data'):

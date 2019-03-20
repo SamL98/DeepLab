@@ -46,7 +46,7 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 	tot_pred_mask = tot_pred_mask.reshape(orig_shape)
 	if save: 
 		save_calib_pred(imset, idx, tot_pred_mask, conf_thresh, name)
-	return pred_mask
+	return tot_pred_mask
 	
 	
 def calibrate_logits_unpack(params):

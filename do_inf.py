@@ -20,51 +20,25 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 	# Get the DeepLab terminal predictions, ignoring background
 	term_preds = np.argmax(logits[:,1:], -1) + 1
 
-	# The total mask will be the mask into pred_mask
-	tot_mask = fg_mask
-
 	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
 	else: scores = logits
 
-	for slc in slices:
-		# Create a table for calibration where each row is the accuracy histogram for that node
-		calib_table = []
-		for node in slc:
-			calib_table.append(node.get_conf_acc_hist())
-		calib_table = np.array(calib_table)
+	for pix_idx, (term_pred, score_vec, gt_lab) in enumerate(zip(term_preds, scores, gt)):
+		for i, slc in enumerate(slices):
+			slc_score = remap_scores(score_vec, slc)
 
-		# Remap the logits or softmax and terminal predictions to the current slice
-		slc_scores = np.zeros((len(scores), len(slc)), dtype=np.float32)
-		slc_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
-		slc_term_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
+			if sm_by_slice: slc_sm = sm_of_logits(slc_score)
+			else: slc_sm = slc_score
 
-		for i, (score_vec, term_pred) in enumerate(zip(scores, term_preds)):
-			slc_scores[i] = remap_scores(score_vec, slc)
-			slc_pred_labels[i] = remap_label(term_pred, slc)
-			slc_term_pred_labels[i] = remap_label(term_pred, slc, push_down=True)
+			slc_pred_lab = remap_label(term_pred, slc)
+			slc_term_pred_lab = remap_label(term_pred, push_down=True)
 
-		if sm_by_slice: slc_sm = sm_of_logits(slc_scores)
-		else: slc_sm = slc_scores
+			node = slc[slc_pred_lab]
+			conf = node.get_confs_for_score(slc_sm)
 
-		# Obtain the calibrated confidence for every logit on the forced path
-		# Not buggy, only buggy before with binvec because of increment
-		binvec = np.floor(slc_sm[:,slc_pred_labels]/res).astype(np.int16)
-		binvec = np.minimum(binvec, nb-1)
-		confs = calib_table[slc_pred_labels, binvec]
-
-		conf_mask = confs >= conf_thresh
-
-		# np.where returns a tuple so get the first element (tot_mask is 1d)
-		tot_mask = np.where(tot_mask)[0][conf_mask]
-		pred_mask[tot_mask] = slc_term_pred_labels[conf_mask]
-
-		unconf_mask = (not conf_mask)
-		if unconf_mask.sum() == 0:
-			return predicted_mask
-
-		scores = scores[unconf_mask]
-		gt = gt[unconf_mask]
-		term_preds = term_preds[unconf_mask]
+			if conf >= conf_thresh:
+				pred_mask[pix_idx] = slc_term_pred_lab
+				break
 		
 	pred_mask = pred_mask.reshape(mask_shape)
 	if save: 

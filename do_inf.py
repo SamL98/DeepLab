@@ -40,7 +40,7 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 
 
 	# Loop over each pixel's logit vector and its corresponding ground truth
-	for pix_idx, (true_label, score_vec) in enumerate(zip(gt, scores)):
+	for pix_idx, (true_label, score_vec, ) in enumerate(zip(gt, scores, terminal_preds)):
 		# If the ground truth is background or void, ignore
 		if true_label == 0 or true_label == 255: continue
 
@@ -58,7 +58,7 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 				slc_sm = remap_scores(score_vec, slc)
 
 			# Remap the terminal prediction to the slice
-			pred_label = remap_label(terminal_pred, slc)
+			pred_label = remap_label(terminal_preds[pix_idx], slc)
 
 			node = slc[pred_label]
 			calib_conf = node.get_conf_for_score(slc_sm[pred_label])

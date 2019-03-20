@@ -170,7 +170,7 @@ def confidence_for_node(vec, node):
 	"""
 	return vec[node.terminals].sum()
 
-def remap_label(true_label, slc):
+def remap_label(true_label, slc, push_down=False):
 	"""
 	Remaps a ground truth terminal label to a truth label within a slice
 
@@ -178,7 +178,11 @@ def remap_label(true_label, slc):
 	:param slc: list of clusters
 	"""
 	for i, node in enumerate(slc):
-		if true_label in node.terminals: return i
+		if true_label in node.terminals:
+			lab = i
+			if push_down and len(node.terminals) == 1:
+				lab = node.terminals[0]
+			return lab
 		
 def remap_scores(vec, slc):
 	"""

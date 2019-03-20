@@ -5,76 +5,73 @@ import sys
 
 from util import *
 
+def generate_calibrated_mask(res, nb, slc_idx, slices, scores, gt, term_preds, conf_thresh, sm_by_slice):
+	predicted_mask = np.zeros_like(gt)
+	if slc_idx == len(slices): return predicted_mask
+
+	# Create a table for calibration where each row is the accuracy histogram for that node
+	calib_table = []
+	for node in slices[slc_idx]:
+		calib_table.append(node.get_conf_acc_hist())
+	calib_table = np.array(calib_table)
+
+	# Remap the logits or softmax and terminal predictions to the current slice
+	slc_scores = np.zeros((len(scores), len(slc)), dtype=np.float32)
+	slc_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
+	slc_term_pred_labels = np.zeros((len(scores)), dtype=np.uint8)
+
+	for i, (score_vec, term_pred) in enumerate(zip(scores, term_preds)):
+		slc_scores[i] = remap_scores(score_vec, slc)
+		slc_pred_labels[i] = remap_label(term_pred, slc)
+		slc_term_pred_labels[i] = remap_label(term_pred, slc, push_down=True)
+
+	if sm_by_slice: slc_sm = sm_of_logits(slc_scores)
+	else: slc_sm = slc_scores
+
+	# Obtain the calibrated confidence for every logit on the forced path
+	#
+	# This is what got me before but it's only because I was incrementing
+	binvec = np.floor(slc_sm/res).astype(np.int16)
+	binvec = np.minimum(binvec, nb-1)
+	confs = calib_table[slc_pred_labels, binvec]
+
+	conf_mask = confs > conf_thresh
+	predicted_mask[conf_mask] = slc_term_pred_labels[conf_mask]
+
+	unconf_mask = (not conf_mask)
+	if unconf_mask.sum() == 0:
+		return predicted_mask
+
+	scores = scores[unconf_mask]
+	gt = gt[unconf_mask]
+	term_preds = term_preds[unconf_mask]
+	predicted_mask[unconf_mask] = generate_calibrated_mask(res, nb, 
+														   slc_idx+1, slices, 
+														   scores, gt, term_preds, 
+														   conf_thresh, sm_by_slice)
+
 def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, name):
-	res = 1./nb
-	
 	logits = load_logits(imset, idx, reshape=True)
-
 	gt = load_gt(imset, idx, reshape=False)
-	predicted_mask = np.zeros(gt.shape, dtype=np.uint8)
-	gt = gt.ravel()
+	mask_shape = gt.shape
 
-	if not sm_by_slice:
-		scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
-	else:
-		scores = logits
+	gt = gt.ravel()
+	predicted_mask = np.zeros_like(gt)
 
 	fg_mask = fg_mask_for(gt)
+	logits = logits[fg_mask]
 	gt = gt[fg_mask]
 
-	scores = scores[fg_mask]
-	terminal_preds = np.argmax(scores, axis=-1)
+	term_preds = np.argmax(logits, -1)
 
-	for slc in slices:
-		slc_scores = np.zeros((len(logits), len(slc)), dtype=np.float32)
-		pred_labels = np.zeros((len(logits)), dtype=np.uint8)
+	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
+	else: scores = logits
 
-		for i, (score_vec, term_pred) in enumerate(zip(scores, terminal_preds)):
-			slc_scores[i] = remap_scores(score_vec, slc)
-			pred_labels[i] = remap_label(term_pred, slc)
-
-		if sm_by_slice:
-			slc_sm = sm_of_logits(slc_scores)
-		else:
-			slc_sm = slc_scores
-
-
-	# Loop over each pixel's logit vector and its corresponding ground truth
-	for pix_idx, (true_label, score_vec) in enumerate(zip(gt, scores)):
-		# If the ground truth is background or void, ignore
-		if true_label == 0 or true_label == 255: continue
-
-		confident_label = 0
-
-		# Loop over each slice, breaking when the confidence threshold is hit
-		for i, slc in enumerate(slices):
-			if sm_by_slice:
-				# Remap the logits to the slice clusters
-				slc_logits = remap_scores(score_vec, slc)
-
-				# Take the softmax of the remapped logits
-				slc_sm = sm_of_logits(slc_logits)
-			else:
-				slc_sm = remap_scores(score_vec, slc)
-
-			# Remap the terminal prediction to the slice
-			pred_label = remap_label(terminal_pred, slc)
-
-			node = slc[pred_label]
-			calib_conf = node.get_conf_for_score(slc_sm[pred_label])
-
-			if calib_conf >= conf_thresh:
-				# If we predicted a terminal label in not the first slice, output the terminal label, not the node index
-				if len(slc[pred_label].terminals) == 1:
-					confident_label = node.terminals[0]
-				else:
-					confident_label = node.node_idx
-
-				# Break if we are confident enough
-				break
-
-		r, c = np.unravel_index(pix_idx, predicted_mask.shape)
-		predicted_mask[r, c] = confident_label
+	predicted_mask[fg_mask] = generate_calibrated_mask(1./nb, nb, 
+											  0, slices, 
+											  scores, gt, term_preds, 
+											  conf_thresh, sm_by_slice)
+	predicted_mask = predicted_mask.reshape(mask_shape)
 	
 	if save:
 		save_calib_pred(imset, idx, predicted_mask, conf_thresh, name)

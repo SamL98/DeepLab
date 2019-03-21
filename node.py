@@ -159,3 +159,12 @@ class Node(object):
 				accs[bin_mask] -= self.int_ranges[binno]
 
 		return accs
+
+	def reset(self, nb):
+		print('Resetting %s node data' % self.name)
+
+		self.c_hist = np.zeros((nb), dtype=np.uint64)
+		self.tot_hist = np.zeros((nb), dtype=np.uint64)
+
+		if hasattr(self, 'node_data_fname'):
+			os.remove(self.node_data_fname)

@@ -68,6 +68,7 @@ def aggregate_proc_confs(proc_slices, slices, args):
 	for i, slc in enumerate(slices):
 		for j, node in enumerate(slc):
 			node.__init__(node.name, node.node_idx, node.terminals, data_dir=args.data_dir, is_main=True)
+			node.reset(args.nb)
 
 			for proc_slice in proc_slices:
 				proc_node = proc_slice[i][j]
@@ -109,13 +110,14 @@ if __name__ == '__main__':
 	with poolcontext(args.num_proc) as p:
 		proc_slices = p.map(get_confs_for_idxs_unpack, param_batches)
 
-	slices = aggregate_proc_confs(proc_slices, slices, args)
+	main_slices = slices.copy()
+	main_slices = aggregate_proc_confs(proc_slices, main_slices, args)
 
 	output_fname = args.output_file
 	if output_fname is None:
 		output_fname = args.slice_file
 
-	save_slices(output_fname, slices)
+	save_slices(output_fname, main_slices)
 	
 	if args.test:
 		os.remove(args.data_dir)

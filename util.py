@@ -20,6 +20,13 @@ if isfile(ds_info_fname):
 	classes = ds_info['class_labels'][:-1]
 	nc = len(classes)-1
 
+	num_val = None
+	if 'n_val' in ds_info:
+		num_val = ds_info['n_val']
+
+	num_test = None
+	if 'n_test' in ds_info:
+		num_test = ds_info['n_test']
 
 def stdout_writeln(string):
 	sys.stdout.write(string + '\n')
@@ -31,6 +38,10 @@ Loading Utilities
 '''
 
 def num_img_for(imset):
+	global num_val, num_test
+	if not (num_val is None or num_test is None):
+		return eval('num_%s' % imset.lower())
+
 	val_size = 724
 	if imset == 'val':
 		return val_size

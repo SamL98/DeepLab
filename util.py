@@ -142,7 +142,7 @@ def is_in_gt_path(pred_label, gt_label, slices):
 		# Accumulate the total nodes before the current slice so that when gt_label is remapped
 		# to the local indices of the slice, that base is added to test for equality with the predicted label.
 		if pred_label <= len(slc) + total_nodes:
-			gt_remapped = remap_gt(gt_label, slc) + total_nodes
+			gt_remapped = remap_label(gt_label, slc) + total_nodes
 			return gt_remapped == pred_label
 		
 		total_nodes += len(slc)

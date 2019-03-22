@@ -2,40 +2,42 @@ import numpy as np
 from hdf5storage import loadmat, savemat
 from os.path import join
 import sys
+from functools import reduce
 
 from util import *
 
-def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, name):
-	logits = load_logits(imset, idx, reshape=True)
-	gt = load_gt(imset, idx, reshape=False)
-	orig_shape = gt.shape
+def perform_inference_on_image(idx, slices, args, ret_mask=False):
+	'''
+	Performs calibrated inference on a single image
 
-	gt = gt.ravel()
-	tot_pred_mask = np.zeros_like(gt)
+	Params:
+		idx: The index of the image within args.imset
+		slices: A copy of the original slices
+		args: The command line arguments
+		ret_mask: Whether or not to return the predicted mask from this function
 
-	fg_mask = fg_mask_for(gt)
-	logits = logits[fg_mask]
-	gt = gt[fg_mask]
+	Returns:
+		The predicted mask if ret_mask = True
+	'''
+	logits, term_preds, gt_info = load_logit_gt_pair(args.imset, idx, ret_shape=True, ret_mask=True)
+	gt, orig_shape, fg_mask = gt_info
 
-	fg_pred_mask = np.zeros_like(gt)
-
-	# Get the DeepLab terminal predictions, ignoring background
-	term_preds = np.argmax(logits[:,1:], -1) + 1
+	fg_pred_mask = np.zeros_like(term_preds)
 
 	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
 	else: scores = logits
 
-	for pix_idx, (term_pred, score_vec, gt_lab) in enumerate(zip(term_preds, scores, gt)):
+	for pix_idx, (term_pred, score_vec) in enumerate(zip(term_preds, scores)):
 		for i, slc in enumerate(slices):
 			slc_score = remap_scores(score_vec, slc)
+			slc_pred_lab = remap_label(term_pred, slc)
 
 			if sm_by_slice: slc_sm = sm_of_logits(slc_score)
 			else: slc_sm = slc_score
 
-			slc_pred_lab = remap_label(term_pred, slc)
-
 			node = slc[slc_pred_lab]
-			conf = node.get_conf_for_score(slc_sm[slc_pred_lab])
+			slc_sm_val = slc_sm[slc_pred_lab]
+			conf = node.get_conf_for_score(slc_sm_val)
 
 			if conf >= conf_thresh:
 				pred_lab = node.node_idx
@@ -45,17 +47,36 @@ def calibrate_logits(idx, imset, slices, nb, save, conf_thresh, sm_by_slice, nam
 				fg_pred_mask[pix_idx] = pred_lab
 				break
 		
+	tot_num_pix = reduce(lambda x, y: x*y, orig_shape)
+	tot_pred_mask = np.zeros((tot_num_pix), dtype=fg_pred_mask.dtype)
+
 	tot_pred_mask[fg_mask] = fg_pred_mask
+
 	tot_pred_mask = tot_pred_mask.reshape(orig_shape)
+
 	if save: 
-		save_calib_pred(imset, idx, tot_pred_mask, conf_thresh, name)
-	return tot_pred_mask
+		save_calib_pred(args.imset, idx, tot_pred_mask, args.conf_thresh, args.name)
+
+	if ret_mask:
+		return tot_pred_mask
 	
+def perform_inference_on_idxs(idxs, slices, args):
+	'''
+	Performs calibrated inference on the specified indices
+
+	Params:
+		idx: The indices into args.imset
+		slices: A copy of the original slices
+		args: The command line arguments
+	'''
+	for idx in idxs:
+		perform_inference_on_image(idx, slices, args, ret_mask=False)
 	
-def calibrate_logits_unpack(params):
-	idx_batch, slices, args = params
-	for idx in idx_batch:
-		calibrate_logits(idx, args.imset, slices, args.nb, args.save, args.conf_thresh, args.sm_by_slice, args.name)
+def perform_inference_on_idxs_unpack(params):
+	'''
+	Wrapper for perform_inference_on_idxs
+	'''
+	perform_inference_on_idxs(*params)
 	
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Build the calibration hierarchy using multiprocessing.')

@@ -5,64 +5,69 @@ import os
 
 from util import *
 
-# Get the confograms for the given logits and ground truth labels
-def confs_for_pixels(logits, gt, slices, args):
-	terminal_pred = np.argmax(logits[:,1:], axis=-1) + 1
+def calibrate_sm_for_image(idx, slices, args):
+	'''
+	Calibrates the softmax value for one (logits, ground truth) pair
 
-	# If we are not taking the softmax by slice, take the softmax once and be done with it
-	if not args.sm_by_slice:
-		sm = sm_of_logits(logits, start_idx=1, zero_pad=True)
+	Params:
+		idx: The index of the image within args.imset
+		slices: A copy of the original slices
+		args: The command line arguments
 
-	for i, slc in enumerate(slices):
-		# Remap the ground truth to the local labels of the current slice
-		slc_gt = np.array([remap_label(lab, slc) for lab in gt])
+	Returns:
+		A copy of the slices with the single-image counts accumulated
+	'''
 
-		# Remap the terminal predictions to the local labels of the current slice
-		slc_term_pred = np.array([remap_label(pred, slc) for pred in terminal_pred])
+	logits, term_pred, gt = load_logits_pred_gt_triplet(args.imset, idx)
 
-		if args.sm_by_slice:
-			slc_logits = np.array([remap_scores(logit_vec, slc) for logit_vec in logits])
-			slc_sm = sm_of_logits(slc_logits)
-		else:
-			slc_sm = np.array([remap_scores(sm_vec, slc) for sm_vec in sm])
+	if not args.sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
+	else: scores = logits
 
-		for j, node in enumerate(slc):
-			# Create a mask of where the terminal prediction was this label
-			pred_mask = slc_term_pred == j
+	for slc in slices:
+		slc_gt = remap_label_arr(gt, slc)
+		slc_term_pred = remap_label_arr(gt, slc)
+		slc_scores = remap_scores_arr(scores, slc)
 
+		if args.sm_by_slice: slc_sm = sm_of_logits(slc_score)
+		else: slc_sm = slc_scores
+
+		for i, node in enumerate(slc):
+			pred_mask = slc_term_pred == i
 			slc_gt_masked = slc_gt[pred_mask]
 			slc_sm_masked = slc_sm[pred_mask]
 
-			# Because of the previous mask, the j-th softmax value will always be the predicted softmax score
-			sm_conf = slc_sm_masked[:,j]
-
-			# Save the confidence of each pixel as well as whether it was correct to disk
-			node.accum_scores(sm_conf, slc_gt_masked == j, args.nb, args.sigma)
+			slc_sm_val = slc_sm_masked[:,i]
+			node.accum_scores(slc_sm_val, slc_gt_masked == i, args.nb, args.sigma)
 
 	return slices
 
 
-# Return the correct and count confograms given the hierarchy specified by slices
-def get_confs_for_idxs(idxs, slices, args):
+def calibrate_sm_for_idxs(idxs, slices, args):
+	'''
+	Calibrates the DeepLab-predicted softmax values for the given indices
+
+	Params:
+		idxs: An array of indices into the given imset to calibrate
+		slices: A copy of the original slices
+		args: The command-line arguments passed to the script
+
+	Returns:
+		A copy of the original slices with count distributions accumulated
+	'''
 	for slc in slices:
 		for node in slc:
 			node.__init__(node.name, node.node_idx, node.terminals, data_dir=args.data_dir)
 
-	# If we are computing the confograms on the fly, load each image individually and accumulate all the confograms
 	for idx in idxs:
-		logits = load_logits(args.imset, idx, reshape=True)
-		gt = load_gt(args.imset, idx, reshape=True)
-
-		fg_mask = fg_mask_for(gt)
-		logits = logits[fg_mask]
-		gt = gt[fg_mask]
-
-		slices = confs_for_pixels(logits, gt, slices, args)
+		slices = calibrate_sm_for_image(idx, slices, args)
 
 	return slices
 
-def get_confs_for_idxs_unpack(params):
-	return get_confs_for_idxs(*params)
+def calibrate_sm_for_idxs_unpack(params):
+	'''
+	Wrapper for calibrate_sm_for_idxs
+	'''
+	return calibrate_sm_for_idxs(*params)
 
 def aggregate_proc_confs(proc_slices, slices, args):
 	for i, slc in enumerate(slices):

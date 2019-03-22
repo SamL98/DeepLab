@@ -82,6 +82,9 @@ def num_img_for(imset):
 		return val_size
 	else:
 		return 1449-val_size
+
+def imset_iter(imset):
+	return range(1, num_img_for(imset)+1)
 		
 def load_rgb(imset, idx):
 	global ds_path
@@ -108,6 +111,34 @@ def load_logits(imset, idx, reshape=False):
 		lgts = lgts.reshape(-1, nc+1)
 
 	return lgts
+
+def load_logit_gt_pair(imset, idx, reshape=True, masked=True, ret_shape=False, ret_mask=False):
+	logits = load_logits(imset, idx, reshape=reshape)
+	gt = load_gt(imset, idx, reshape=ret_shape)
+
+	if ret_shape:
+		shape = gt.shape
+		if reshape: gt = gt.ravel()
+
+	if masked:
+		fg_mask = fg_mask_for(gt)
+		logits = logits[fg_mask]
+		gt = gt[fg_mask]
+
+	gt_info = gt
+
+	if ret_shape:
+		gt_info = (gt, shape)
+
+	if ret_mask and masked:
+		gt_info = gt_info + (fg_mask,)
+
+	return logits, gt_info
+
+def load_logit_pred_gt_triplet(imset, idx, reshape=True, masked=True, ret_shape=False, ret_mask=False):
+	logits, gt_info = load_logit_gt_pair(imset, idx, reshape, masked, ret_shape, ret_mask)
+	pred = np.argmax(logits[...,1:], -1) + 1
+	return logits, pred, gt_info
 	
 def load_dl_pred(imset, idx):
 	global ds_path
@@ -222,7 +253,7 @@ def confidence_for_node(vec, node):
 	"""
 	return vec[node.terminals].sum()
 
-def remap_label(term_label, slc, push_down=False):
+def remap_label(term_label, slc):
 	"""
 	Remaps a terminal label to a truth label within a slice
 
@@ -231,10 +262,10 @@ def remap_label(term_label, slc, push_down=False):
 	"""
 	for i, node in enumerate(slc):
 		if term_label in node.terminals:
-			lab = i
-			if push_down and len(node.terminals) == 1:
-				lab = node.terminals[0]
-			return lab
+			return i
+
+def remap_label_arr(label_arr, slc):
+	return np.array([remap_label(lab, slc) for lab in label_arr])
 		
 def remap_scores(vec, slc):
 	"""
@@ -249,7 +280,8 @@ def remap_scores(vec, slc):
 		conf.append(confidence_for_node(vec, node))
 	return np.array(conf)
 
-
+def remap_scores_arr(score_arr, slc):
+	return np.array([remap_scores(score_vec, slc) for score_vec in score_arr])
 
 '''
 Multiprocessing Utilities

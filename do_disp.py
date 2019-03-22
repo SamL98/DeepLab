@@ -16,28 +16,40 @@ parser.add_argument('--name', dest='name', type=str, help='The name of the curre
 parser.add_argument('--idx', dest='idx', type=int, default=-1, help='The index of the result to display.')
 args = parser.parse_args()
 
+def load_pred(args):
+	gt = load_gt(args.imset, args.idx, reshape=False)
+
+	bg_mask = (1-fg_mask_for(gt)).astype(np.bool)
+	gt[bg_mask] = 0
+
+	logits = load_logits(args.imset, args.idx)
+	logits[...,0] = 0
+
+	dl_pred = np.argmax(logits, axis=-1)
+	dl_pred[bg_mask] = 0
+	
+	calib_pred = load_calib_pred(args.imset, args.idx, args.conf_thresh, args.name)
+	if calib_pred is None:
+		exit()
+
+	return gt, dl_pred, calib_pred
+
 slices = read_slices(args.slice_file)
 
 if args.idx < 0:
 	m = num_img_for(args.imset)
-	args.idx = np.random.choice(m, 1)[0]
+
+	done = False
+	while not done:
+		args.idx = np.random.choice(m, 1)[0]
+		gt, dl_pred, calib_pred = load_pred(args)
+		done = not (set(np.unique(dl_pred)) == set(np.unique(calib_pred)))
+
 	print(args.idx)
+else:
+	gt, dl_pred, calib_pred = load_pred(args)
 
 img = load_rgb(args.imset, args.idx)
-gt = load_gt(args.imset, args.idx, reshape=False)
-
-bg_mask = (1-fg_mask_for(gt)).astype(np.bool)
-gt[bg_mask] = 0
-
-logits = load_logits(args.imset, args.idx)
-logits[...,0] = 0
-
-dl_pred = np.argmax(logits, axis=-1)
-dl_pred[bg_mask] = 0
-	
-calib_pred = load_calib_pred(args.imset, args.idx, args.conf_thresh, args.name)
-if calib_pred is None:
-	exit()
 
 print('GT Labels:')
 for lab in np.unique(gt):

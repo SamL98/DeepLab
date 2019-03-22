@@ -14,10 +14,10 @@ def confs_for_pixels(logits, gt, slices, args):
 		sm = sm_of_logits(logits, start_idx=1, zero_pad=True)
 
 	for i, slc in enumerate(slices):
-		# Remap the terminal predictions to the local labels of the current slice
+		# Remap the ground truth to the local labels of the current slice
 		slc_gt = np.array([remap_label(lab, slc) for lab in gt])
 
-		# Remap the ground truth to the local labels of the current slice
+		# Remap the terminal predictions to the local labels of the current slice
 		slc_term_pred = np.array([remap_label(pred, slc) for pred in terminal_pred])
 
 		if args.sm_by_slice:
@@ -66,19 +66,19 @@ def get_confs_for_idxs_unpack(params):
 
 def aggregate_proc_confs(proc_slices, slices, args):
 	for i, slc in enumerate(slices):
-		for j, node in enumerate(slc):
-			node.__init__(node.name, node.node_idx, node.terminals, data_dir=args.data_dir, is_main=True)
-			node.reset(args.nb)
+		for j, main_node in enumerate(slc):
+			main_node.__init__(main_node.name, main_node.node_idx, main_node.terminals, data_dir=args.data_dir, is_main=True)
+			main_node.reset(args.nb)
 
 			for proc_slice in proc_slices:
 				proc_node = proc_slice[i][j]
-				
+
 				if not hasattr(proc_node, 'tot_hist'):
 					continue
 
-				node.accum_node(proc_node)
+				main_node.accum_node(proc_node)
 
-			node.generate_acc_hist(args.nb, args.alpha)
+			main_node.generate_acc_hist(args.nb, args.alpha)
 
 	return slices
 

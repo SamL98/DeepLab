@@ -57,13 +57,6 @@ class Node(object):
 		self.terminals = terminals
 		self.data_dir = data_dir
 
-		# Since we generally use multiple clones of each node to obtain the calibration data,
-		# the pid is appended to the filenames of the node if we are a clone
-		if is_main:
-			pid = ''
-		else:
-			pid = '_' + str(os.getpid())
-
 		if is_main:
 			self.node_data_fname = join(self.data_dir, '%s_node_data.mat' % self.uid)
 			if isfile(self.node_data_fname):
@@ -116,6 +109,7 @@ class Node(object):
 
 		sys.stdout.write('Saving %s data\n' % self.name)
 		sys.stdout.flush()
+
 		savemat(self.node_data_fname, self.node_data)
 
 	def get_conf_acc_hist(self):
@@ -132,7 +126,10 @@ class Node(object):
 
 		nb = len(self.acc_hist)
 		res = 1./nb
+
 		binno = int(np.floor(score/res))
+		binno = np.minimum(binno, nb-1)
+
 		acc_val = self.acc_hist[binno]
 
 		if hasattr(self, 'int_ranges'):

@@ -62,7 +62,7 @@ parser = ArgumentParser(description='Build the calibration hierarchy using multi
 parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
 parser.add_argument('--imset', dest='imset', type=str, default='test', help='The image set to build the calibration histograms from. Either val or test')
 parser.add_argument('--num_proc', dest='num_proc', type=int, default=8, help='The number of processes to spawn to parallelize calibration.')
-parser.add_argument('--save', dest='save', action='store_false', help='Whether or not to save the inference results.')
+parser.add_argument('--dont_save', dest='save', action='store_false', help='Whether or not to save the inference results.')
 parser.add_argument('--conf_thresh', dest='conf_thresh', type=float, default=0.75, help='The confidence threshold for inference.')
 parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
 parser.add_argument('--name', dest='name', type=str, help='The name of the current method.')

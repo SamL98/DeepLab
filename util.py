@@ -92,8 +92,8 @@ def save_calib_pred(imset, idx, pred, conf, name):
 	global ds_path
 
 	pred_dir = join(ds_path, 'deeplab_prediction', imset, name)
-	#if not isdir(pred_dir):
-	#	os.mkdir(pred_dir)
+	if not isdir(pred_dir):
+		os.mkdir(pred_dir)
 
 	savemat(join(pred_dir, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf), {'pred_img': pred})
 	

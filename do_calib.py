@@ -97,7 +97,6 @@ parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', he
 parser.add_argument('--data_dir', dest='data_dir', type=str, default='calib_data', help='The data to store confidences in')
 parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the calibration script. Takes the first 2*num_proc from the imset.')
 
-
 if __name__ == '__main__':
 	args = parser.parse_args()
 	

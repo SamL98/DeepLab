@@ -10,6 +10,41 @@ import sys
 
 from node import Node
 
+'''
+Expected filesystem:
+
+./
+	calib_data_<calib name>/
+		<node uid>_node_data.mat:
+			c_hist
+			tot_hist
+			acc_hist
+			int_ranges
+
+	slices_<calib name>.pkl
+
+ds_path/
+	dataset_info.mat
+
+	RGB/
+		<imset>/
+			<imset>_<0's>idx_rgb.jpg
+
+	Truth/
+		<imset>/
+			<imset>_<0's>idx_pixeltruth.mat:
+				truth_img
+
+	Deeplab_Prediction/
+		<imset>/
+			<imset>_<0's>idx_logits.mat:
+				logits_img
+
+			<calib name>/
+				<imset>_<0's>idx_calib_pred_<conf thresh>.mat
+					pred_img
+'''
+
 ds_path = 'D:/datasets/processed/voc2012'
 if 'DS_PATH' in os.environ:
 	ds_path = os.environ['DS_PATH']

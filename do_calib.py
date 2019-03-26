@@ -28,7 +28,7 @@ def calibrate_sm_for_image(idx, slices, args):
 		slc_term_pred = remap_label_arr(term_pred, slc)
 		slc_scores = remap_scores_arr(scores, slc)
 
-		if args.sm_by_slice: slc_sm = sm_of_logits(slc_score)
+		if args.sm_by_slice: slc_sm = sm_of_logits(slc_scores)
 		else: slc_sm = slc_scores
 
 		for i, node in enumerate(slc):

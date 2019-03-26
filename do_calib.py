@@ -18,7 +18,7 @@ def calibrate_sm_for_image(idx, slices, args):
 		A copy of the slices with the single-image counts accumulated
 	'''
 
-	logits, term_pred, gt = load_logits_pred_gt_triplet(args.imset, idx)
+	logits, term_pred, gt = load_logit_pred_gt_triplet(args.imset, idx)
 
 	if not args.sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
 	else: scores = logits

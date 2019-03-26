@@ -66,7 +66,7 @@ def view(name, idx):
 	min_w = min(gt.shape[1], dl_pred.shape[1])
 
 	gt = gt[:min_h, :min_w]
-	dl_pred = dl_pred[:min_h, :min_w]
+	dl_pred = dl_pred[:min_h, :min_w]+1
 	rgb = rgb[:min_h, :min_w]
 	calib_pred = calib_pred[:min_h, :min_w]
 

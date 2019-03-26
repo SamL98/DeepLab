@@ -4,6 +4,7 @@
 /datasets/
 /acc_hists/
 /__pycache__/
+/utils/__pycache__/
 /VOCdevkit/
 /calib_data/
 /calib_data_*/

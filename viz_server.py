@@ -76,10 +76,12 @@ def view(name, idx):
 	cmap = voc_colormap()
 	max_label = max(gt.max(), dl_pred.max(), calib_pred.max())
 	cmap = np.concatenate((cmap[:max_label], np.expand_dims(cmap[-1], 0)), axis=0)
-	gt[gt==255] = len(cmap)-1
+
+	#gt[gt==255] = len(cmap)-1
+	#dl_pred[gt==255] = len(cmap)-1
 
 	diff_mask = calib_pred != dl_pred
-	where_diff = np.where(diff_mask)[0].astype(np.uint8)
+	where_diff = np.where(diff_mask.ravel())[0]
 	diff_labs = calib_pred[diff_mask].astype(np.uint8)
 	calib_delta = list(map(list, zip(where_diff, diff_labs)))
 

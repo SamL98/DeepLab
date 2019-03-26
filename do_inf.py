@@ -19,12 +19,12 @@ def perform_inference_on_image(idx, slices, args, ret_mask=False):
 	Returns:
 		The predicted mask if ret_mask = True
 	'''
-	logits, term_preds, gt_info = load_logit_gt_pair(args.imset, idx, ret_shape=True, ret_mask=True)
+	logits, term_preds, gt_info = load_logit_pred_gt_triplet(args.imset, idx, ret_shape=True, ret_mask=True)
 	gt, orig_shape, fg_mask = gt_info
 
 	fg_pred_mask = np.zeros_like(term_preds)
 
-	if not sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
+	if not args.sm_by_slice: scores = sm_of_logits(logits, start_idx=1, zero_pad=True)
 	else: scores = logits
 
 	for pix_idx, (term_pred, score_vec) in enumerate(zip(term_preds, scores)):
@@ -32,14 +32,14 @@ def perform_inference_on_image(idx, slices, args, ret_mask=False):
 			slc_score = remap_scores(score_vec, slc)
 			slc_pred_lab = remap_label(term_pred, slc)
 
-			if sm_by_slice: slc_sm = sm_of_logits(slc_score)
+			if args.sm_by_slice: slc_sm = sm_of_logits(slc_score)
 			else: slc_sm = slc_score
 
 			node = slc[slc_pred_lab]
 			slc_sm_val = slc_sm[slc_pred_lab]
 			conf = node.get_conf_for_score(slc_sm_val)
 
-			if conf >= conf_thresh:
+			if conf >= args.conf_thresh:
 				pred_lab = node.node_idx
 				if len(node.terminals) == 1:
 					pred_lab = node.terminals[0]
@@ -96,4 +96,4 @@ if __name__ == '__main__':
 	param_batches = get_param_batches(slices, args)
 
 	with poolcontext(args.num_proc) as p:
-		_ = p.map(calibrate_logits_unpack, param_batches)
+		_ = p.map(perform_inference_on_idxs_unpack, param_batches)

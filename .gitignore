@@ -7,6 +7,9 @@
 /VOCdevkit/
 /calib_data/
 /calib_data_*/
+/dataset/
+/static/
+/templates/
 *.mat
 *.png
 *.zip

@@ -89,12 +89,20 @@ def imset_iter(imset):
 def load_rgb(imset, idx):
 	global ds_path
 	
-	return imread(join(ds_path, 'rgb', imset, imset+'_%06d_rgb.jpg' % idx))
+	fname = join(ds_path, 'rgb', imset, imset+'_%06d_rgb.jpg' % idx)
+	if not isfile(fname):
+		return None
+
+	return imread(fname)
 
 def load_gt(imset, idx, reshape=False):
 	global ds_path
 
-	gt = loadmat(join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat') % idx)['truth_img']
+	fname = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat') % idx
+	if not isfile(fname):
+		return None
+
+	gt = loadmat(fname)['truth_img']
 
 	if reshape:
 		gt = gt.ravel()
@@ -104,7 +112,11 @@ def load_gt(imset, idx, reshape=False):
 def load_logits(imset, idx, reshape=False):
 	global ds_path
 
-	lgts = loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat') % idx)['logits_img']
+	fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat') % idx
+	if not isfile(fname):
+		return None
+
+	lgts = loadmat(fname)['logits_img']
 
 	if reshape:
 		global nc
@@ -143,7 +155,11 @@ def load_logit_pred_gt_triplet(imset, idx, reshape=True, masked=True, ret_shape=
 def load_dl_pred(imset, idx):
 	global ds_path
 	
-	return loadmat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_prediction.mat') % idx)['pred_img']
+	pred_fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_prediction.mat') % idx
+	if isfile(pred_fname):
+		return loadmat(pred_fname)['pred_img']-1
+	
+	return None
 	
 def load_calib_pred(imset, idx, conf, name):
 	global ds_path
@@ -162,6 +178,21 @@ def save_calib_pred(imset, idx, pred, conf, name):
 		os.mkdir(pred_dir)
 
 	savemat(join(pred_dir, imset+'_%06d_calib_pred_%.2f.mat') % (idx, conf), {'pred_img': pred})
+
+def voc_colormap():
+	colormap = np.zeros((256, 3), dtype=int)
+	ind = np.arange(256, dtype=int)
+
+	for shift in reversed(range(8)):
+		for channel in range(3):
+			colormap[:, channel] |= ((ind >> channel) & 1) << shift
+		ind >>= 3
+
+	return colormap
+	
+def cvt_to_rgb(labelmap):
+	colormap = voc_colormap()
+	return colormap[labelmap]
 	
 
 '''

@@ -40,7 +40,7 @@ def parzen_estimate(confs, bins, sigma):
 	for i, bn in enumerate(bins):
 		z = (confs - bn) / sigma
 		parzen[i] = (np.exp(-z**2 / 2)).sum()
-	return np.round(parzen / np.maximum(1e-7, parzen.sum()) * len(confs))
+	return parzen
 
 class node_data_keys(Enum):
 	C_HIST = 'c_hist'
@@ -73,30 +73,39 @@ class Node(object):
 		self.tot_hist = self.node_data[node_data_keys.TOT_HIST.value]
 		self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
 		
-	def _accum_stats(self, c_hist, tot_hist):
-		self.add_attr_if_not_exists('c_hist', np.zeros_like(c_hist))
-		self.add_attr_if_not_exists('tot_hist', np.zeros_like(tot_hist))
+	def _accum_stats(self, c_pdf, tot_pdf, n_c, n_tot):
+		self.add_attr_if_not_exists('c_pdf', np.zeros_like(c_pdf))
+		self.add_attr_if_not_exists('tot_pdf', np.zeros_like(tot_pdf))
+		self.add_attr_if_not_exists('n_c', 0)
+		self.add_attr_if_not_exists('n_tot', 0)
 
-		self.c_hist += c_hist
-		self.tot_hist += tot_hist
+		self.c_pdf += c_pdf
+		self.tot_pdf += tot_pdf
+		self.n_c += n_c
+		self.n_tot += n_tot
 
 	def accum_scores(self, confs, correct_mask, nb, sigma):
 		bins = np.linspace(0, 1, num=nb+1)
-		c_hist = parzen_estimate(confs[correct_mask], bins, sigma)
-		tot_hist = parzen_estimate(confs, bins, sigma)
-		self._accum_stats(c_hist, tot_hist)
+		c_pdf = parzen_estimate(confs[correct_mask], bins, sigma)
+		tot_pdf = parzen_estimate(confs, bins, sigma)
+		self._accum_stats(c_hist, tot_hist, correct_mask.sum(), len(confs))
 	
 	def accum_node(self, node):
-		self._accum_stats(node.c_hist, node.tot_hist)
+		self._accum_stats(node.c_hist, node.tot_hist, node.n_c, node.n_tot)
 			
 	def generate_acc_hist(self, nb, alpha):
-		attrs = ['c_hist', 'tot_hist']
+		attrs = ['c_pdf', 'tot_pdf', 'n_c', 'n_tot']
 		for attr in attrs:
 			if not hasattr(self, attr): return
 		
+		self.c_hist = np.round(self.c_pdf / np.maximum(1e-7, self.c_pdf.sum()) * self.n_c)
+		self.tot_hist = np.round(self.tot_pdf / np.maximum(1e-7, self.tot_pdf.sum()) * self.n_tot)
+		self.tot_hist[self.tot_hist == 0] = 1
+
 		acc_hist = self.c_hist.astype(np.float32) / np.maximum(1e-7, self.tot_hist.astype(np.float32))
 		acc_hist = np.minimum(1, acc_hist)
 		acc_hist, int_ranges = conf_ints(acc_hist, self.tot_hist, alpha)
+		
 		self.acc_hist = acc_hist
 		self.int_ranges = int_ranges
 

@@ -5,7 +5,6 @@ from skimage.io import imread
 import matplotlib.pyplot as plt
 
 from util import *
-from perform_calibrated_inference import calibrate_logits
 
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Build the calibration hierarchy using multiprocessing.')
@@ -19,13 +18,23 @@ args = parser.parse_args()
 def load_pred(args):
 	gt = load_gt(args.imset, args.idx, reshape=False)
 
+	dl_pred = load_dl_pred(args.imset, args.idx)
+
+	if dl_pred is None:
+		logits = load_logits(args.imset, args.idx)
+		logits[...,0] = 0
+		dl_pred = np.argmax(logits, axis=-1)
+	else:
+		dl_pred -= 1
+
+	min_h = min(len(gt), len(dl_pred))
+	min_w = min(gt.shape[1], dl_pred.shape[1])
+
+	gt = gt[:min_h, :min_w]
+	dl_pred = dl_pred[:min_h, :min_w]
+
 	bg_mask = (1-fg_mask_for(gt)).astype(np.bool)
 	gt[bg_mask] = 0
-
-	logits = load_logits(args.imset, args.idx)
-	logits[...,0] = 0
-
-	dl_pred = np.argmax(logits, axis=-1)
 	dl_pred[bg_mask] = 0
 	
 	calib_pred = load_calib_pred(args.imset, args.idx, args.conf_thresh, args.name)

@@ -112,7 +112,7 @@ if __name__ == '__main__':
 	param_batches = get_param_batches(slices, args)
 
 	with poolcontext(args.num_proc) as p:
-		proc_slices = p.map(get_confs_for_idxs_unpack, param_batches)
+		proc_slices = p.map(calibrate_sm_for_idxs_unpack, param_batches)
 
 	main_slices = slices.copy()
 	main_slices = aggregate_proc_confs(proc_slices, main_slices, args)

@@ -54,7 +54,7 @@ def perform_inference_on_image(idx, slices, args, ret_mask=False):
 
 	tot_pred_mask = tot_pred_mask.reshape(orig_shape)
 
-	if save: 
+	if args.save: 
 		save_calib_pred(args.imset, idx, tot_pred_mask, args.conf_thresh, args.name)
 
 	if ret_mask:

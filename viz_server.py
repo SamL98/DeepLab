@@ -90,12 +90,19 @@ def view(name, idx):
 		'gt': gt
 	}
 
+	class_labels = classes
+	
+	slices = read_slices(f'slices_{name}.pkl')
+	for slc in slices[1:]:
+		for node in slc:
+			class_labels.append(node.name)
+
 	template_info = {
 		'idx': idx,
 		'conf': conf_thresh,
 		'h': min_h,
 		'w': min_w,
-		'class_labels': classes + ['void'],
+		'class_labels': class_labels + ['void'],
 		'colormap': arr_to_b64(cmap),
 		'rgb_str': im_to_b64(rgb),
 		'gt_str': arr_to_b64(gt),

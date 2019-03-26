@@ -88,10 +88,10 @@ class Node(object):
 		bins = np.linspace(0, 1, num=nb+1)
 		c_pdf = parzen_estimate(confs[correct_mask], bins, sigma)
 		tot_pdf = parzen_estimate(confs, bins, sigma)
-		self._accum_stats(c_hist, tot_hist, correct_mask.sum(), len(confs))
+		self._accum_stats(c_pdf, tot_pdf, correct_mask.sum(), len(confs))
 	
 	def accum_node(self, node):
-		self._accum_stats(node.c_hist, node.tot_hist, node.n_c, node.n_tot)
+		self._accum_stats(node.c_pdf, node.tot_pdf, node.n_c, node.n_tot)
 			
 	def generate_acc_hist(self, nb, alpha):
 		attrs = ['c_pdf', 'tot_pdf', 'n_c', 'n_tot']

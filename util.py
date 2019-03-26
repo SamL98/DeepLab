@@ -131,6 +131,8 @@ def load_logit_gt_pair(imset, idx, reshape=True, masked=True, ret_shape=False, r
 	if ret_shape:
 		shape = gt.shape
 		if reshape: gt = gt.ravel()
+	elif reshape:
+		gt = gt.ravel()
 
 	if masked:
 		fg_mask = fg_mask_for(gt)

@@ -172,5 +172,5 @@ class Node(object):
 		self.c_hist = np.zeros((nb), dtype=np.uint64)
 		self.tot_hist = np.zeros((nb), dtype=np.uint64)
 
-		if hasattr(self, 'node_data_fname'):
+		if hasattr(self, 'node_data_fname') and isfile(self.node_data_fname):
 			os.remove(self.node_data_fname)

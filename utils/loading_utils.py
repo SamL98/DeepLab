@@ -50,7 +50,7 @@ def load_logits(imset, idx, reshape=False):
 
 def load_logit_gt_pair(imset, idx, reshape=True, masked=True, ret_shape=False, ret_mask=False):
 	logits = load_logits(imset, idx, reshape=reshape)
-	gt = load_gt(imset, idx, reshape=ret_shape)
+	gt = load_gt(imset, idx, reshape=(not ret_shape))
 
 	if ret_shape:
 		shape = gt.shape
@@ -79,7 +79,7 @@ def load_logit_pred_gt_triplet(imset, idx, reshape=True, masked=True, ret_shape=
 	return logits, pred, gt_info
 	
 def load_dl_pred(imset, idx):
-	global ds_path
+	ds_path = dsutil.ds_path
 	
 	pred_fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_prediction.mat') % idx
 	if isfile(pred_fname):
@@ -88,9 +88,9 @@ def load_dl_pred(imset, idx):
 	return None
 	
 def load_calib_pred(imset, idx, name, slc=None, conf=None):
-	global ds_path
+	ds_path = dsutil.ds_path
 	
-	fname = join(ds_path, 'deeplab_prediction', imset, name, imset+'_%06d_calib_pred.mat') % idx
+	fname = join(ds_path, 'deeplab_prediction', imset, name, imset+'_%06d_calib_pred.mat' % idx)
 	if not isfile(fname):
 		return None
 		
@@ -107,7 +107,7 @@ def load_calib_pred(imset, idx, name, slc=None, conf=None):
 	return masks, conf_maps
 
 def save_calib_pred(imset, idx, name, confident_masks, confidence_maps):
-	global ds_path
+	ds_path = dsutil.ds_path
 
 	pred_dir = join(ds_path, 'deeplab_prediction', imset, name)
 	if not isdir(pred_dir):
@@ -118,4 +118,4 @@ def save_calib_pred(imset, idx, name, confident_masks, confidence_maps):
 		'conf_maps': confidence_maps
 	}
 
-	savemat(join(pred_dir, imset+'_%06d_calib_pred.mat') % idx, mats)
+	savemat(join(pred_dir, imset+'_%06d_calib_pred.mat' % idx), mats)

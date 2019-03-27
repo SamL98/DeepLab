@@ -30,7 +30,7 @@ import subprocess
 Create a fake dataset_info.mat that util will use to return the dataset information
 '''
 ds_path = 'test_ds'
-data_path = join(ds_path, 'node_data')
+data_path = join(ds_path, 'calib_data_calib-test')
 
 os.mkdir(ds_path)
 os.environ['DS_PATH'] = ds_path
@@ -140,7 +140,7 @@ def calibrate(sm_by_slice):
         'sigma': 0.1,
         'alpha': 0.05,
         'nb': 10,
-        'output_file': join(ds_path, 'test_slices_output.pkl'),
+        'output_file': join(ds_path, 'calib-test_slices.pkl'),
         'data_dir': data_path
     }
     args = list(map(lambda kv: f'--{kv[0]}={kv[1]}', args_dict.items()))
@@ -151,7 +151,7 @@ def calibrate(sm_by_slice):
     retcode = subprocess.call(['python', 'do_calib.py'] + args)
     assert retcode == 0, 'Non-zero return code from calibration: %d' % retcode
 
-def infer():
+def infer(sm_by_slice):
     print('Performing dummy inference.')
 
     global ds_path
@@ -160,10 +160,10 @@ def infer():
     os.mkdir(join(ds_path, 'deeplab_prediction', 'test', name))
 
     args_dict = {
-        'slice_file': join(ds_path, 'test_slices_output.pkl'),
+        'slice_file': join(ds_path, 'calib-test_slices.pkl'),
         'imset': 'test',
         'num_proc': 2,
-        'conf_thresh': 0.75
+        'name': 'calib-test'
     }
     args = list(map(lambda kv: f'--{kv[0]}={kv[1]}', args_dict.items()))
     
@@ -195,11 +195,11 @@ if __name__ == '__main__':
     calibrate(sm_by_slice)
 
     print('Validating dummy calibration.')
-    validate_calibration(join(ds_path, 'test_slices_output.pkl'), num_fg_pix, per_class_counts)
+    validate_calibration(join(ds_path, 'calib-test_slices.pkl'), num_fg_pix, per_class_counts)
 
     infer(sm_by_slice)
 
     print('Validating dummy inference.')
-    validate_inference(join(ds_path, 'test_slices_output.pkl'), 'test', 'dummy_calib', conf_thresh)
+    validate_inference(join(ds_path, 'calib-test_slices.pkl'), 'calib-test', 'dummy_calib')
 
     teardown()

@@ -25,16 +25,18 @@ def perform_inference_on_image(idx, slices, args):
 
 	for slc in slices:
 		slc_fg_conf_mask = np.zeros_like(term_preds)
-		slc_fg_conf_map = np.zeros_like(logits)
+		slc_fg_conf_map = np.zeros((len(logits)), dtype=logits.dtype)
 
 		slc_pred_labs = remap_label_arr(term_preds, slc)
-		slc_scores = remap_label_arr(scores, slc)
+		slc_scores = remap_scores_arr(scores, slc)
 
-		if args.sm_by_slice: slc_sm = sm_of_logits(slc_score)
-		else: slc_sm = slc_score
+		if args.sm_by_slice: slc_sm = sm_of_logits(slc_scores)
+		else: slc_sm = slc_scores
 
-		for pix_idx, (slc_pred_lab, slc_sm_val) in enumerate(zip(slc_pred_labs, slc_sm)):
+		for pix_idx, (slc_pred_lab, slc_sm_vec) in enumerate(zip(slc_pred_labs, slc_sm)):
 			node = slc[slc_pred_lab]
+
+			slc_sm_val = slc_sm_vec[slc_pred_lab]
 			conf = node.get_conf_for_score(slc_sm_val)
 
 			pred_lab = node.node_idx

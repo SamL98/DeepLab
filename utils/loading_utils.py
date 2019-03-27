@@ -35,6 +35,7 @@ def load_gt(imset, idx, reshape=False):
 
 def load_logits(imset, idx, reshape=False):
 	ds_path = dsutil.ds_path
+	nc = dsutil.nc
 
 	fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat') % idx
 	if not isfile(fname):
@@ -43,7 +44,6 @@ def load_logits(imset, idx, reshape=False):
 	lgts = loadmat(fname)['logits_img']
 
 	if reshape:
-		global nc
 		lgts = lgts.reshape(-1, nc+1)
 
 	return lgts

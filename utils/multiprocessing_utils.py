@@ -1,6 +1,9 @@
 import multiprocessing as mp
 from contextlib import contextmanager
 
+from os.path import isfile 
+import numpy as np
+
 @contextmanager
 def poolcontext(num_proc):
     pool = mp.Pool(num_proc)

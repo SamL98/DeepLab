@@ -8,6 +8,7 @@ import numpy as np
 
 import mask_utils as maskutil
 import ds_utils as dsutil
+import viz_utils as vizutil
 
 def load_rgb(imset, idx):
 	ds_path = dsutil.ds_path
@@ -86,7 +87,7 @@ def load_dl_pred(imset, idx):
 	
 	return None
 	
-def load_calib_pred(imset, idx, name, slc=None):
+def load_calib_pred(imset, idx, name, slc=None, conf=None):
 	global ds_path
 	
 	fname = join(ds_path, 'deeplab_prediction', imset, name, imset+'_%06d_calib_pred.mat') % idx
@@ -99,6 +100,9 @@ def load_calib_pred(imset, idx, name, slc=None):
 
 	if slc:
 		return masks[slc], conf_maps[slc]
+
+	if conf:
+		return vizutil.confident_masks(masks, conf_maps, conf)
 
 	return masks, conf_maps
 

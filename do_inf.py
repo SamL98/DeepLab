@@ -79,6 +79,7 @@ parser.add_argument('--imset', dest='imset', type=str, default='test', help='The
 parser.add_argument('--num_proc', dest='num_proc', type=int, default=8, help='The number of processes to spawn to parallelize calibration.')
 parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
 parser.add_argument('--name', dest='name', type=str, help='The name of the current method.')
+parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the inference on a small subset of the dataset.')
 
 if __name__ == '__main__':
 	args = parser.parse_args()

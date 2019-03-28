@@ -137,18 +137,8 @@ class Node(object):
 			assert isfile(join(self.node_data_fname))
 			self.load_node_data()
 
-		nb = len(self.acc_hist)-1
-		res = 1./nb
-
-		binno = int(np.floor(score/res))
-		binno = np.minimum(binno, nb-1)
-
-		acc_val = self.acc_hist[binno]
-
-		if hasattr(self, 'int_ranges'):
-			acc_val -= self.int_ranges[binno]
-
-		return acc_val
+		lbound_acc_hist = self.get_conf_acc_hist()
+		return np.interp(score, np.linspace(0, 1, num=len(lbound_acc_hist)), lbound_acc_hist)
 
 	def reset(self, nb):
 		print('Resetting %s node data' % self.name)

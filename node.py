@@ -91,7 +91,7 @@ class Node(object):
 		self.n_ic += n_ic
 
 	def accum_scores(self, confs, correct_mask, nb, sigma):
-		bins = np.linspace(0, 1, num=nb+1)
+		bins = np.linspace(0, 1, num=nb)
 		c_pdf = parzen_estimate(confs[correct_mask], bins, sigma)
 		ic_pdf = parzen_estimate(confs[(1-correct_mask).astype(np.bool)], bins, sigma)
 		self._accum_stats(c_pdf, ic_pdf, correct_mask.sum(), len(confs) - correct_mask.sum())

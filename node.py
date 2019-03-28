@@ -137,7 +137,7 @@ class Node(object):
 			assert isfile(join(self.node_data_fname))
 			self.load_node_data()
 
-		nb = len(self.acc_hist)
+		nb = len(self.acc_hist)-1
 		res = 1./nb
 
 		binno = int(np.floor(score/res))

@@ -22,6 +22,9 @@ def get_param_batches(slices, args):
 			idx_ordering = [int(idx) for idx in f.read().split('\n')]
 
 	idx_ordering = np.array(idx_ordering)
+	if args.test:
+		idx_ordering = idx_ordering[:2*args.num_proc]
+		
 	param_batches = []
 
 	for procno in range(args.num_proc):

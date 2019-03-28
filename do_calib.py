@@ -78,7 +78,7 @@ def aggregate_proc_confs(proc_slices, slices, args):
 			for proc_slice in proc_slices:
 				proc_node = proc_slice[i][j]
 
-				if not hasattr(proc_node, 'n_tot'):
+				if not hasattr(proc_node, 'n_c'):
 					continue
 
 				main_node.accum_node(proc_node)

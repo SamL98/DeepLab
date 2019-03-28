@@ -16,14 +16,15 @@ from utils.viz_utils import *
 Expected filesystem:
 
 ./
-	calib_data_<calib name>/
-		<node uid>_node_data.mat:
-			c_hist
-			tot_hist
-			acc_hist
-			int_ranges
-
-	slices_<calib name>.pkl
+	calib_data/
+		<name>/
+			slices.pkl
+			<node uid>_node_data.mat:
+				c_hist
+				c_hist
+				tot_hist
+				acc_hist
+				int_ranges
 
 ds_path/
 	dataset_info.mat

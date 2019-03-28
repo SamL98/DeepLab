@@ -2,6 +2,7 @@ import numpy as np
 from hdf5storage import loadmat, savemat
 from os.path import join, isfile, isdir
 import os
+import shutil
 
 from util import *
 
@@ -78,7 +79,7 @@ def aggregate_proc_confs(proc_slices, slices, args):
 			for proc_slice in proc_slices:
 				proc_node = proc_slice[i][j]
 
-				if not hasattr(proc_node, 'n_tot'):
+				if not hasattr(proc_node, 'n_c'):
 					continue
 
 				main_node.accum_node(proc_node)
@@ -124,4 +125,4 @@ if __name__ == '__main__':
 	save_slices(output_fname, main_slices)
 	
 	if args.test:
-		os.remove(args.data_dir)
+		shutil.rmtree(args.data_dir)

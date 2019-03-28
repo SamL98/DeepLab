@@ -44,6 +44,7 @@ def parzen_estimate(confs, bins, sigma):
 
 class node_data_keys(Enum):
 	C_HIST = 'c_hist'
+	IC_HIST = 'ic_hist'
 	TOT_HIST = 'tot_hist'
 	ACC_HIST = 'acc_hist'
 	INT_RANGES = 'int_ranges'
@@ -66,40 +67,46 @@ class Node(object):
 		if not hasattr(self, attr_name):
 			setattr(self, attr_name, attr_val)
 
+	def remove_attr_if_exists(self, attr_name):
+		if hasattr(self, attr_name):
+			delattr(self, attr_name)
+
 	def load_node_data(self):
 		self.node_data = loadmat(self.node_data_fname)
 		self.acc_hist = self.node_data[node_data_keys.ACC_HIST.value]
 		self.c_hist = self.node_data[node_data_keys.C_HIST.value]
+		self.ic_hist = self.node_data[node_data_keys.IC_HIST.value]
 		self.tot_hist = self.node_data[node_data_keys.TOT_HIST.value]
 		self.int_ranges = self.node_data[node_data_keys.INT_RANGES.value]
 		
-	def _accum_stats(self, c_pdf, tot_pdf, n_c, n_tot):
+	def _accum_stats(self, c_pdf, ic_pdf, n_c, n_ic):
 		self.add_attr_if_not_exists('c_pdf', np.zeros_like(c_pdf))
-		self.add_attr_if_not_exists('tot_pdf', np.zeros_like(tot_pdf))
+		self.add_attr_if_not_exists('ic_pdf', np.zeros_like(ic_pdf))
 		self.add_attr_if_not_exists('n_c', 0)
-		self.add_attr_if_not_exists('n_tot', 0)
+		self.add_attr_if_not_exists('n_ic', 0)
 
 		self.c_pdf += c_pdf
-		self.tot_pdf += tot_pdf
+		self.ic_pdf += ic_pdf
 		self.n_c += n_c
-		self.n_tot += n_tot
+		self.n_ic += n_ic
 
 	def accum_scores(self, confs, correct_mask, nb, sigma):
-		bins = np.linspace(0, 1, num=nb+1)
+		bins = np.linspace(0, 1, num=nb)
 		c_pdf = parzen_estimate(confs[correct_mask], bins, sigma)
-		tot_pdf = parzen_estimate(confs, bins, sigma)
-		self._accum_stats(c_pdf, tot_pdf, correct_mask.sum(), len(confs))
+		ic_pdf = parzen_estimate(confs[(1-correct_mask).astype(np.bool)], bins, sigma)
+		self._accum_stats(c_pdf, ic_pdf, correct_mask.sum(), len(confs) - correct_mask.sum())
 	
 	def accum_node(self, node):
-		self._accum_stats(node.c_pdf, node.tot_pdf, node.n_c, node.n_tot)
+		self._accum_stats(node.c_pdf, node.ic_pdf, node.n_c, node.n_ic)
 			
 	def generate_acc_hist(self, nb, alpha):
-		attrs = ['c_pdf', 'tot_pdf', 'n_c', 'n_tot']
+		attrs = ['c_pdf', 'ic_pdf', 'n_c', 'n_ic']
 		for attr in attrs:
 			if not hasattr(self, attr): return
 		
 		self.c_hist = np.round(self.c_pdf / np.maximum(1e-7, self.c_pdf.sum()) * self.n_c)
-		self.tot_hist = np.round(self.tot_pdf / np.maximum(1e-7, self.tot_pdf.sum()) * self.n_tot)
+		self.ic_hist = np.round(self.ic_pdf / np.maximum(1e-7, self.ic_pdf.sum()) * self.n_ic)
+		self.tot_hist = self.c_hist + self.ic_hist
 		self.tot_hist[self.tot_hist == 0] = 1
 
 		acc_hist = self.c_hist.astype(np.float32) / np.maximum(1e-7, self.tot_hist.astype(np.float32))
@@ -112,6 +119,7 @@ class Node(object):
 		self.node_data = {
 			node_data_keys.ACC_HIST.value: self.acc_hist,
 			node_data_keys.C_HIST.value: self.c_hist,
+			node_data_keys.IC_HIST.value: self.ic_hist,
 			node_data_keys.TOT_HIST.value: self.tot_hist,
 			node_data_keys.INT_RANGES.value: self.int_ranges
 		}
@@ -133,44 +141,14 @@ class Node(object):
 			assert isfile(join(self.node_data_fname))
 			self.load_node_data()
 
-		nb = len(self.acc_hist)
-		res = 1./nb
-
-		binno = int(np.floor(score/res))
-		binno = np.minimum(binno, nb-1)
-
-		acc_val = self.acc_hist[binno]
-
-		if hasattr(self, 'int_ranges'):
-			acc_val -= self.int_ranges[binno]
-
-		return acc_val
-
-	def get_conf_for_scores(self, scores):
-		if not hasattr(self, 'node_data'):
-			assert isfile(join(self.node_data_fname))
-			self.load_node_data()
-
-		nb = len(self.acc_hist)
-		res = 1./nb
-
-		bin_vec = np.floor(scores/res)
-		accs = np.zeros((len(bin_vec)), dtype=np.float32)
-		
-		for binno in np.unique(bin_vec):
-			bin_mask = bin_vec == binno
-			accs[bin_mask] = self.acc_hist[binno]
-			
-			if hasattr(self, 'int_ranges'):
-				accs[bin_mask] -= self.int_ranges[binno]
-
-		return accs
+		lbound_acc_hist = self.get_conf_acc_hist()
+		return np.interp(score, np.linspace(0, 1, num=len(lbound_acc_hist)), lbound_acc_hist)
 
 	def reset(self, nb):
 		print('Resetting %s node data' % self.name)
 
-		self.c_hist = np.zeros((nb), dtype=np.uint64)
-		self.tot_hist = np.zeros((nb), dtype=np.uint64)
+		self.remove_attr_if_exists('c_pdf')
+		self.remove_attr_if_exists('ic_pdf')
 
 		if hasattr(self, 'node_data_fname') and isfile(self.node_data_fname):
 			os.remove(self.node_data_fname)

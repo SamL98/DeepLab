@@ -102,7 +102,7 @@ def load_calib_pred(imset, idx, name, slc=None, conf=None):
 		return masks[slc], conf_maps[slc]
 
 	if conf:
-		return vizutil.confident_masks(masks, conf_maps, conf)
+		return vizutil.confident_mask(masks, conf_maps, conf)
 
 	return masks, conf_maps
 

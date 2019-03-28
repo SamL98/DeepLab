@@ -67,6 +67,10 @@ class Node(object):
 		if not hasattr(self, attr_name):
 			setattr(self, attr_name, attr_val)
 
+	def remove_attr_if_exists(self, attr_name):
+		if hasattr(self, attr_name):
+			delattr(self, attr_name)
+
 	def load_node_data(self):
 		self.node_data = loadmat(self.node_data_fname)
 		self.acc_hist = self.node_data[node_data_keys.ACC_HIST.value]
@@ -143,8 +147,8 @@ class Node(object):
 	def reset(self, nb):
 		print('Resetting %s node data' % self.name)
 
-		delattr(self, 'c_pdf')
-		delattr(self, 'ic_pdf')
+		self.remove_attr_if_exists('c_pdf')
+		self.remove_attr_if_exists('ic_pdf')
 
 		if hasattr(self, 'node_data_fname') and isfile(self.node_data_fname):
 			os.remove(self.node_data_fname)

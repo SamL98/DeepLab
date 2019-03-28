@@ -110,8 +110,8 @@ def save_calib_pred(imset, idx, name, confident_masks, confidence_maps):
 	ds_path = dsutil.ds_path
 
 	pred_dir = join(ds_path, 'deeplab_prediction', imset, name)
-	if not isdir(pred_dir):
-		os.mkdir(pred_dir)
+	#if not isdir(pred_dir):
+	#	os.mkdir(pred_dir)
 
 	mats = {
 		'masks': confident_masks,

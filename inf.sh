@@ -2,8 +2,9 @@ name="${1}"
 data_dir="calib_data/${name}"
 slices_name="calib_data/${name}/slices.pkl"
 
-ds_path="D:/datasets/processed/voc2012"
 if [[ -z $DS_PATH ]]; then
+	ds_path="D:/datasets/processed/voc2012"
+else
 	ds_path=$DS_PATH
 fi
 

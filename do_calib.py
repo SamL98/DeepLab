@@ -2,6 +2,7 @@ import numpy as np
 from hdf5storage import loadmat, savemat
 from os.path import join, isfile, isdir
 import os
+import shutil
 
 from util import *
 
@@ -124,4 +125,4 @@ if __name__ == '__main__':
 	save_slices(output_fname, main_slices)
 	
 	if args.test:
-		os.remove(args.data_dir)
+		shutil.rmtree(args.data_dir)

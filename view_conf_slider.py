@@ -99,12 +99,19 @@ if __name__ == '__main__':
 
 	ax[0,0].imshow(rgb)
 	ax[0,0].axis('off')
+	ax[0,0].set_title('Original Image')
+
 	ax[0,1].imshow(cmap[gt])
 	ax[0,1].axis('off')
+	ax[0,1].set_title('Ground Truth')
+
 	ax[1,0].imshow(cmap[dl_pred])
 	ax[1,0].axis('off')
+	ax[1,0].set_title('DeepLab Prediction')
+
 	calib_mask_ax = ax[1,1].imshow(cmap[conf_mask])
 	ax[1,1].axis('off')
+	ax[1,1].set_title('Calibrated Prediction')
 
 	gt_anno = stub_anno(ax[0,1])
 	dl_anno = stub_anno(ax[1,0])

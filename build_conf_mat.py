@@ -85,7 +85,7 @@ else:
 	
 	
 conf_mat[range(20), range(20)] = 0
-conf_mat = conf_mat.astype(np.float32)/conf_mat.sum()
+conf_mat = conf_mat.astype(np.float64)/conf_mat.sum()
 
 class_labels = ds_info['class_labels'][1:]
 class_labels[class_labels.index('aeroplane')] = 'plane'

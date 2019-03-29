@@ -109,7 +109,7 @@ class Node(object):
 		self.tot_hist = self.c_hist + self.ic_hist
 		self.tot_hist[self.tot_hist == 0] = 1
 
-		acc_hist = self.c_hist.astype(np.float32) / np.maximum(1e-7, self.tot_hist.astype(np.float32))
+		acc_hist = self.c_hist.astype(np.float64) / np.maximum(1e-7, self.tot_hist.astype(np.float64))
 		acc_hist = np.minimum(1, acc_hist)
 		acc_hist, int_ranges = conf_ints(acc_hist, self.tot_hist, alpha)
 

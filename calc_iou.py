@@ -15,8 +15,8 @@ GT_FMT = imset.lower()+'_%06d_pixeltruth.mat'
 
 ds_info = loadmat(join(ROOT_DIR, 'dataset_info.mat'))
 num_class = ds_info['num_labels']-1
-i_per_class = np.zeros(num_class, dtype=np.float32)
-u_per_class = np.zeros(num_class, dtype=np.float32)
+i_per_class = np.zeros(num_class, dtype=np.float64)
+u_per_class = np.zeros(num_class, dtype=np.float64)
 num_img = ds_info['num_'+imset.lower()]
 
 for idx in range(1, num_img+1):

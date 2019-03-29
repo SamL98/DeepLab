@@ -85,6 +85,6 @@ for idx in range(1, m+1):
 
 for slc in slices:
 	for cluster in slc:
-		cluster.acc_hist[:] = cluster.corr_hist.astype(np.float32) / np.maximum(1e-5, cluster.count_hist.astype(np.float32))
+		cluster.acc_hist[:] = cluster.corr_hist.astype(np.float64) / np.maximum(1e-5, cluster.count_hist.astype(np.float64))
 
 save_slices(tree_fname, slices)

@@ -61,7 +61,7 @@ if __name__ == '__main__':
 		print('Performing inference on image %d' % im_idx)
 		sys.stdout.flush()
 	
-		inpt_im = np.array(Image.open(join(RGB_PATH, INPT_FMT % im_idx)), dtype=np.float32)
+		inpt_im = np.array(Image.open(join(RGB_PATH, INPT_FMT % im_idx)), dtype=np.float64)
 		if inpt_im.shape[2] == 4:
 			inpt_im = inpt_im[:,:,:-1]
 		h, w, _ = inpt_im.shape
@@ -101,7 +101,7 @@ if __name__ == '__main__':
 			logits = sess.run(output_tensor, feed_dict={INPUT_TENSOR_NAME: inpt_im})
 		
 		logits = np.squeeze(logits)
-		#softmax = resize_func(softmax, h, w).astype(np.float32)
+		#softmax = resize_func(softmax, h, w).astype(np.float64)
 		
 		savemat(join(OUTPUT_PATH, LGT_FMT % im_idx),
 				{LGT_MAT_NAME: logits})

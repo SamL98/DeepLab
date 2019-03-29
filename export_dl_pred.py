@@ -61,7 +61,7 @@ if __name__ == '__main__':
 	for im_idx in range(1, num_img+1):
 		print('Performing inference on image %d' % im_idx)
 	
-		inpt_im = np.array(Image.open(join(RGB_PATH, INPT_FMT % im_idx)), dtype=np.float32)
+		inpt_im = np.array(Image.open(join(RGB_PATH, INPT_FMT % im_idx)), dtype=np.float64)
 		if inpt_im.shape[2] == 4:
 			inpt_im = inpt_im[:,:,:-1]
 		h, w, _ = inpt_im.shape

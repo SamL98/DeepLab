@@ -136,13 +136,21 @@ class Node(object):
 
 		return self.acc_hist - self.int_ranges
 			
-	def get_conf_for_score(self, score):		
+	def conf_for_score(self, score):		
 		if not hasattr(self, 'node_data'):
 			assert isfile(join(self.node_data_fname))
 			self.load_node_data()
 
 		lbound_acc_hist = self.get_conf_acc_hist()
 		return np.interp(score, np.linspace(0, 1, num=len(lbound_acc_hist)), lbound_acc_hist)
+
+	def conf_for_scoes(self, scores):
+		if not hasattr(self, 'node_data'):
+			assert isfile(join(self.node_data_fname))
+			self.load_node_data()
+
+		lbound_acc_hist = self.get_conf_acc_hist()
+		return np.interp(scores, np.linspace(0, 1, num=len(lbound_acc_hist)), lbound_acc_hist)
 
 	def reset(self, nb):
 		print('Resetting %s node data' % self.name)

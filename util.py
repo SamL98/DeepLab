@@ -11,6 +11,7 @@ from utils.slice_utils import *
 from utils.multiprocessing_utils import *
 from utils.color_utils import *
 from utils.viz_utils import *
+from utils.example_utils import *
 
 '''
 Expected filesystem:

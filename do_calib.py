@@ -14,12 +14,12 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 		lgts = lgts.reshape(-1, util.nc)
 		term_preds = np.argmax(lgts, -1) + 1
 
-		if not args.sm_by_slice: scores = util.sm_of_logits(logits, zero_pad=True)
-		else: scores = logits
+		if not args.sm_by_slice: scores = util.sm_of_logits(lgts, zero_pad=True)
+		else: scores = lgts
 
 		for slc in slices:
 			slc_gt = util.remap_label_arr(gt, slc)
-			slc_term_pred = util.remap_label_arr(term_pred, slc)
+			slc_term_pred = util.remap_label_arr(term_preds, slc)
 			slc_scores = util.remap_scores_arr(scores, slc)
 
 			if args.sm_by_slice: slc_sm = util.sm_of_logits(slc_scores)

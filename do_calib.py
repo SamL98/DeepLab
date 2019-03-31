@@ -7,7 +7,7 @@ import shutil
 import util
 
 def calibrate_sm_for_chunk(chunkno, chunklen, slices, args):
-	batch_size = 10000 # calculate later	
+	batch_size = 100000 # calculate later	
 	batch_sizes = [batch_size] * (chunklen//batch_size)
 	batch_sizes[-1] -= chunklen % batch_size
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 	if not isdir(args.data_dir):
 		os.mkdir(args.data_dir)
 
-	slices = util.read_slices(args.slice_file, reset=args.reset)
+	slices = util.read_slices(args.slice_file)
 
 	n_img = util.num_img_for(args.imset)
 	img_per_chunk = [n_img//args.num_proc] * args.num_proc
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 	param_batches = [(i, chnk_len, slices.copy(), args) for i, chnk_len in zip(range(args.num_proc), img_per_chunk)] 
 
 	with util.poolcontext(args.num_proc) as p:
-		proc_slices = p.map(calibrate_sm_for_idxs_unpack, param_batches)
+		proc_slices = p.map(calibrate_sm_for_chunk_unpack, param_batches)
 
 	main_slices = slices.copy()
 	main_slices = aggregate_proc_confs(proc_slices, main_slices, args)

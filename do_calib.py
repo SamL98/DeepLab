@@ -6,13 +6,11 @@ import shutil
 
 import util
 
-def calibrate_sm_for_chunk(chunkno, chunklen, slices, args):
-	batch_size = 10000 # calculate later	
-	batch_sizes = [batch_size] * (chunklen//batch_size)
-	batch_sizes[-1] -= chunklen % batch_size
+def calibrate_sm_for_chunk(chunkno, slices, args):
+	batch_size = 100000 # calculate later	
 
-	for batch in batch_sizes:
-		_, _, _, lgts, gt = util.unserialize_examples(args.imset, batch, chunkno) 	
+	while True:
+		num_read, _, _, _, lgts, gt = util.unserialize_examples(args.imset, batch_size, chunkno) 	
 		lgts = lgts.reshape(-1, util.nc)
 		term_preds = np.argmax(lgts, -1) + 1
 
@@ -34,6 +32,9 @@ def calibrate_sm_for_chunk(chunkno, chunklen, slices, args):
 
 				slc_sm_val = slc_sm_masked[:,i]
 				node.accum_scores(slc_sm_val, slc_gt_masked == i, args.nb, args.sigma)
+
+		if num_read < batch_size:
+			break
 
 	return slices
 
@@ -77,13 +78,11 @@ if __name__ == '__main__':
 	if not isdir(args.data_dir):
 		os.mkdir(args.data_dir)
 
-	slices = util.read_slices(args.slice_file, reset=args.reset)
+	slices = util.read_slices(args.slice_file)
 
 	n_img = util.num_img_for(args.imset)
-	img_per_chunk = [n_img//args.num_proc] * args.num_proc
-	img_per_chunk[-1] -= n_img % args.num_proc
 
-	param_batches = [(i, chnk_len, slices.copy(), args) for i, chnk_len in zip(range(args.num_proc), img_per_chunk)] 
+	param_batches = [(i, slices.copy(), args) for i in range(args.num_proc)] 
 
 	with util.poolcontext(args.num_proc) as p:
 		proc_slices = p.map(calibrate_sm_for_idxs_unpack, param_batches)

@@ -14,10 +14,12 @@ if not isdir(data_dir):
 
 GT = 'gt'
 LOGITS = 'logits'
+SHAPE = 'shape'
 
 DTYPES = {
 	GT: np.uint8,
-	LOGITS: np.float64
+	LOGITS: np.float64,
+	SHAPE: np.uint32
 }
 
 INT_SIZE = 4
@@ -77,9 +79,11 @@ def unserialize_examples(imset, n_ex, chunkno):
 				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt'), 'rb')
 			}
 
-	hws = np.fromstring(files[SHAPE_F][chnk].read(2 * INT_SIZE))
-	num_fg_bytes = reduce(lambda x,y: x*y, hws)	
+	hws = np.fromstring(files[SHAPE_F][chnk].read(2 * n_ex * INT_SIZE), dtype=DTYPES[SHAPE])
+	if len(hws) != 2*n_ex:
+		n_ex = len(hws)//2
 
+	num_fg_bytes = reduce(lambda x,y: x*y, hws)	
 	fg_masks = np.fromstring(files[FG_F][chnk].read(num_fg_bytes))
 	num_fg_pix = fg_masks.sum()
 
@@ -94,4 +98,4 @@ def unserialize_examples(imset, n_ex, chunkno):
 	shapes = np.concatenate((h_col, w_col), 1) 
 	num_pix = (h_col * w_col).ravel()
 
-	return shapes, num_pix, fg_masks, lgts, gts
+	return n_ex, shapes, num_pix, fg_masks, lgts, gts

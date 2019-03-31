@@ -46,16 +46,16 @@ def close_files():
 atexit.register(close_files)
 
 def serialize_lgt_gt_pair(logits, gt, imset, chunkno):
-	assert logits.shape == gt.shape
-	assert logits.dtype == DTYPE[LOGITS]
-	assert gt.dtype == DTYPE[GT]
+	assert len(logits) == len(gt)
+	assert logits.dtype == DTYPES[LOGITS]
+	assert gt.dtype == DTYPES[GT]
 	
 	chnk = str(chunkno)
 
 	for fname, fs in files.items():
 		if fs is None or not chnk in fs: 
 			files[fname] = {
-				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt', 'ab'))
+				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt'), 'ab')
 			}
 
 	h, w = gt.shape
@@ -74,7 +74,7 @@ def unserialize_examples(imset, n_ex, chunkno):
 	for fname, fs in files.items():
 		if fs is None or not chnk in fs: 
 			files[fname] = {
-				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt', 'rb'))
+				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt'), 'rb')
 			}
 
 	hws = np.fromstring(files[SHAPE_F][chnk].read(2 * INT_SIZE))

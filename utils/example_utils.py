@@ -91,7 +91,7 @@ def unserialize_examples(imset, n_ex, chunkno):
 		fg_masks = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])
 		num_fg_pix = fg_masks.sum()
 	except FloatingPointError:
-		fg_masks = []
+		fg_masks = np.zeros((0), dtype=DTYPES[FG])
 		num_fg_pix = 0
 
 		num_fg_bytes = 0
@@ -99,11 +99,9 @@ def unserialize_examples(imset, n_ex, chunkno):
 			try:
 				num_fg_bytes += hws[i]*hws[i+1]
 			except FloatingPointError:
-				fg_masks.append(np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
+				fg_masks = np.append(fg_masks, np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
 				num_fg_pix += fg_masks[-1].sum()
 				num_fg_bytes = 0
-	
-			fg_masks = np.concatenate(fg_masks)
 
 	num_lgt_bytes = np.dtype(DTYPES[LOGITS]).itemsize * num_fg_pix * dsutil.nc
 	num_gt_bytes = np.dtype(DTYPES[GT]).itemsize * num_fg_pix

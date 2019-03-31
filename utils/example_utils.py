@@ -90,7 +90,7 @@ def unserialize_examples(imset, n_ex, chunkno):
 		num_fg_bytes = reduce(lambda x,y: x*y, hws)	
 		fg_masks = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])
 		num_fg_pix = fg_masks.sum()
-	except np.RuntimeWarning:
+	except Warning:
 		fg_masks = []
 		num_fg_pix = 0
 
@@ -98,7 +98,7 @@ def unserialize_examples(imset, n_ex, chunkno):
 		for i in range(0, len(hws), 2):
 			try:
 				num_fg_bytes += hws[i]*hws[i+1]
-			except np.RuntimeWarning:
+			except Warning:
 				fg_masks.append(np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
 				num_fg_pix += fg_masks[-1].sum()
 				num_fg_bytes = 0

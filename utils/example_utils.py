@@ -85,6 +85,7 @@ def unserialize_examples(imset, n_ex, chunkno):
 	if len(hws) != 2*n_ex:
 		n_ex = len(hws)//2
 
+	np.seterr(all='raise')
 	try:
 		num_fg_bytes = reduce(lambda x,y: x*y, hws)	
 		fg_masks = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])

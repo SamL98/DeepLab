@@ -8,15 +8,14 @@ import util
 
 def calibrate_sm_for_chunk(chunkno, slices, args):
 	batch_size = 100000 # calculate later	
+	zero_col = np.zeros((batch_size))[:,np.newaxis]
+	logits = None
 
 	while True:
 		num_read, _, _, _, lgts, gt = util.unserialize_examples(args.imset, batch_size, chunkno) 	
 		lgts = lgts.reshape(-1, util.nc)
 
-
-		zero_col = np.zeros((len(lgts)))[:,np.newaxis]
-		lgts = np.concatenate((zero_col, lgts), 1)
-
+		lgts = np.concatenate((zero_col[:min(num_read, batch_size)], lgts), 1)
 		term_preds = np.argmax(lgts, -1)
 
 		if not args.sm_by_slice: scores = util.sm_of_logits(lgts, zero_pad=True)

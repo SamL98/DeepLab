@@ -85,9 +85,24 @@ def unserialize_examples(imset, n_ex, chunkno):
 	if len(hws) != 2*n_ex:
 		n_ex = len(hws)//2
 
-	num_fg_bytes = reduce(lambda x,y: x*y, hws)	
-	fg_masks = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])
-	num_fg_pix = fg_masks.sum()
+	try:
+		num_fg_bytes = reduce(lambda x,y: x*y, hws)	
+		fg_masks = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])
+		num_fg_pix = fg_masks.sum()
+	except np.RuntimeWarning:
+		fg_masks = []
+		num_fg_pix = 0
+
+		num_fg_bytes = 0
+		for i in range(0, len(hws), 2):
+			try:
+				num_fg_bytes += hws[i]*hws[i+1]
+			except np.RuntimeWarning:
+				fg_masks.append(np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
+				num_fg_pix += fg_masks[-1].sum()
+				num_fg_bytes = 0
+	
+			fg_masks = np.concatenate(fg_masks)
 
 	num_lgt_bytes = np.dtype(DTYPES[LOGITS]).itemsize * num_fg_pix * dsutil.nc
 	num_gt_bytes = np.dtype(DTYPES[GT]).itemsize * num_fg_pix

@@ -82,8 +82,6 @@ def unserialize_examples(imset, n_ex, chunkno):
 			}
 
 	hws = np.fromstring(files[SHAPE_F][chnk].read(2 * n_ex * INT_SIZE), dtype=DTYPES[SHAPE])
-	if len(hws) != 2*n_ex:
-		n_ex = len(hws)//2
 
 	np.seterr(all='raise')
 	try:
@@ -118,4 +116,4 @@ def unserialize_examples(imset, n_ex, chunkno):
 	shapes = np.concatenate((h_col, w_col), 1) 
 	num_pix = (h_col * w_col).ravel()
 
-	return n_ex, shapes, num_pix, fg_masks, lgts, gts
+	return num_fg_pix, shapes, num_pix, fg_masks, lgts, gts

@@ -7,18 +7,16 @@ import shutil
 import util
 
 def calibrate_sm_for_chunk(chunkno, slices, args):
-	batch_size = 10 # calculate later	
+	batch_size = 500000 # calculate later	
 	logits = None
 	done = False
+	iterno = 0
 
-	num_read = 0
 	while not done:
-		done, _, _, _, lgts, gt = util.unserialize_examples(args.imset, batch_size, chunkno) 	
+		iterno += 1
+		stdout_writeln(str(iterno))
 
-
-		num_read += batch_size
-		util.stdout_writeln(str(num_read))
-
+		done, lgts, gt = util.unserialize_examples_for_calib(args.imset, batch_size, chunkno) 	
 		lgts = lgts.reshape(-1, util.nc)
 
 		zero_col = np.zeros((len(lgts)))[:,np.newaxis]

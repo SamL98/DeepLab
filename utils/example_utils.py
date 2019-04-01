@@ -72,7 +72,7 @@ def serialize_lgt_gt_pair(logits, gt, imset, chunkno):
 	files[LGT_F][chnk].write(logits[...,1:].tobytes())
 	files[GT_F][chnk].write(gt.tobytes())
 
-def unserialize_examples(imset, n_ex, chunkno):
+def open_files_for_reading(imset, chunkno):
 	chnk = str(chunkno)
 
 	for fname, fs in files.items():
@@ -80,6 +80,22 @@ def unserialize_examples(imset, n_ex, chunkno):
 			files[fname] = {
 				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt'), 'rb')
 			}
+
+def read_logits_and_gt(num_pix):
+	num_lgt_bytes = np.dtype(DTYPES[LOGITS]).itemsize * num_pix * dsutil.nc
+	num_gt_bytes = np.dtype(DTYPES[GT]).itemsize * num_pix
+
+	lgts = np.fromstring(files[LGT_F][chnk].read(num_lgt_bytes), dtype=DTYPES[LOGITS])	
+	gts = np.fromstring(files[GT_F][chnk].read(num_gt_bytes), dtype=DTYPES[GT])
+
+	return len(gts) < num_pix, lgts, gts
+
+def unserialize_examples_for_calib(imset, n_pix, chunkno):
+	open_files_for_reading(imset, chunkno)
+	return read_logits_and_gt(n_pix)
+
+def unserialize_examples_for_inf(imset, n_ex, chunkno):
+	open_files_for_reading(imset, chunkno)
 
 	hws = np.fromstring(files[SHAPE_F][chnk].read(2 * n_ex * INT_SIZE), dtype=DTYPES[SHAPE])
 
@@ -109,11 +125,7 @@ def unserialize_examples(imset, n_ex, chunkno):
 			fg_masks = np.append(fg_masks, np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
 			num_fg_pix += fg_masks.sum()
 
-	num_lgt_bytes = np.dtype(DTYPES[LOGITS]).itemsize * num_fg_pix * dsutil.nc
-	num_gt_bytes = np.dtype(DTYPES[GT]).itemsize * num_fg_pix
-
-	lgts = np.fromstring(files[LGT_F][chnk].read(num_lgt_bytes), dtype=DTYPES[LOGITS])	
-	gts = np.fromstring(files[GT_F][chnk].read(num_gt_bytes), dtype=DTYPES[GT])
+	_, lgts, gts = read_logits_and_gt(num_fg_pix)	
 
 	h_col = np.expand_dims(hws[::2], 0)
 	w_col = np.expand_dims(hws[1::2], 0)

@@ -7,17 +7,21 @@ import shutil
 import util
 
 def calibrate_sm_for_chunk(chunkno, slices, args):
-	batch_size = 100000 # calculate later	
-	zero_col = np.zeros((batch_size))[:,np.newaxis]
+	batch_size = 10 # calculate later	
 	logits = None
+	done = False
 
-	while True:
-		num_read, _, _, _, lgts, gt = util.unserialize_examples(args.imset, batch_size, chunkno) 	
+	num_read = 0
+	while not done:
+		done, _, _, _, lgts, gt = util.unserialize_examples(args.imset, batch_size, chunkno) 	
+
+
+		num_read += batch_size
 		util.stdout_writeln(str(num_read))
+
 		lgts = lgts.reshape(-1, util.nc)
 
-		if num_read < batch_size:
-			zero_col = zero_col[:num_read,:]
+		zero_col = np.zeros((len(lgts)))[:,np.newaxis]
 		lgts = np.concatenate((zero_col, lgts), 1)
 		term_preds = np.argmax(lgts, -1)
 
@@ -38,10 +42,9 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 				slc_sm_masked = slc_sm[pred_mask]
 
 				slc_sm_val = slc_sm_masked[:,i]
+				node = slc[i]
 				node.accum_scores(slc_sm_val, slc_gt_masked == i, args.nb, args.sigma)
 
-		if num_read < batch_size:
-			break
 
 	return slices
 

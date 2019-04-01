@@ -14,7 +14,7 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 
 	while not done:
 		iterno += 1
-		stdout_writeln(str(iterno))
+		util.stdout_writeln(str(iterno))
 
 		done, lgts, gt = util.unserialize_examples_for_calib(args.imset, batch_size, chunkno) 	
 		lgts = lgts.reshape(-1, util.nc)

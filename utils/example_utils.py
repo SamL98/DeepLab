@@ -80,8 +80,9 @@ def open_files_for_reading(imset, chunkno):
 			files[fname] = {
 				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt'), 'rb')
 			}
+	return chnk
 
-def read_logits_and_gt(num_pix):
+def read_logits_and_gt(num_pix, chnk):
 	num_lgt_bytes = np.dtype(DTYPES[LOGITS]).itemsize * num_pix * dsutil.nc
 	num_gt_bytes = np.dtype(DTYPES[GT]).itemsize * num_pix
 
@@ -91,11 +92,11 @@ def read_logits_and_gt(num_pix):
 	return len(gts) < num_pix, lgts, gts
 
 def unserialize_examples_for_calib(imset, n_pix, chunkno):
-	open_files_for_reading(imset, chunkno)
-	return read_logits_and_gt(n_pix)
+	chnk = open_files_for_reading(imset, chunkno)
+	return read_logits_and_gt(n_pix, chnk)
 
 def unserialize_examples_for_inf(imset, n_ex, chunkno):
-	open_files_for_reading(imset, chunkno)
+	chnk = open_files_for_reading(imset, chunkno)
 
 	hws = np.fromstring(files[SHAPE_F][chnk].read(2 * n_ex * INT_SIZE), dtype=DTYPES[SHAPE])
 
@@ -125,7 +126,7 @@ def unserialize_examples_for_inf(imset, n_ex, chunkno):
 			fg_masks = np.append(fg_masks, np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
 			num_fg_pix += fg_masks.sum()
 
-	_, lgts, gts = read_logits_and_gt(num_fg_pix)	
+	_, lgts, gts = read_logits_and_gt(num_fg_pix, chnk)	
 
 	h_col = np.expand_dims(hws[::2], 0)
 	w_col = np.expand_dims(hws[1::2], 0)

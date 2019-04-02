@@ -51,11 +51,11 @@ class node_data_keys(Enum):
 	
 
 class Node(object):
-	def __init__(self, name, node_idx, terminals, data_dir='calib_data', is_main=False):
+	def __init__(self, name, node_idx, children, data_dir='calib_data', is_main=False):
 		self.uid = '%d-%s' % (node_idx, name)
 		self.name = name
 		self.node_idx = node_idx
-		self.terminals = terminals
+		self.children = children
 		self.data_dir = data_dir
 
 		if is_main:

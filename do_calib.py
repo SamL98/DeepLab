@@ -8,31 +8,24 @@ import util
 
 def calibrate_sm_for_chunk(chunkno, slices, args):
 	batch_size = 500000 # calculate later	
-	logits = None
+
+	lgts = np.zeros((batch_size, util.nc), dtype=util.DTYPES[util.LOGITS])
+	gt = np.zeros((batch_size), dtype=util.DTYPES[util.GT])
+
 	done = False
-	iterno = 0
 
 	while not done:
-		iterno += 1
-		util.stdout_writeln(str(iterno))
-
-		done, lgts, gt = util.unserialize_examples_for_calib(args.imset, batch_size, chunkno) 	
-		lgts = lgts.reshape(-1, util.nc)
-
-		zero_col = np.zeros((len(lgts)))[:,np.newaxis]
-		lgts = np.concatenate((zero_col, lgts), 1)
+		done, _ = util.unserialize_examples_for_calib(args.imset, batch_size, chunkno, lgts, gt) 	
 		term_preds = np.argmax(lgts, -1)
 
-		if not args.sm_by_slice: scores = util.sm_of_logits(lgts, zero_pad=True)
+		if not args.sm_by_slice: scores = util.sm_of_logits(lgts)
 		else: scores = lgts
 
 		for slc in slices:
-			slc_gt = util.remap_label_arr(gt, slc)
-			slc_term_pred = util.remap_label_arr(term_preds, slc)
-			slc_scores = util.remap_scores_arr(scores, slc)
+			scores = slc.remap_scores_and_labels(scores, lgts, gt)
 
-			if args.sm_by_slice: slc_sm = util.sm_of_logits(slc_scores)
-			else: slc_sm = slc_scores
+			if args.sm_by_slice: sm = util.sm_of_logits(scores)
+			else: sm = scores 
 
 			for i in np.unique(slc_term_pred):
 				pred_mask = slc_term_pred == i
@@ -42,7 +35,6 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 				slc_sm_val = slc_sm_masked[:,i]
 				node = slc[i]
 				node.accum_scores(slc_sm_val, slc_gt_masked == i, args.nb, args.sigma)
-
 
 	return slices
 

@@ -12,7 +12,7 @@ if isfile(ds_info_fname):
 	from hdf5storage import loadmat
 	ds_info = loadmat(ds_info_fname)
 
-	classes = ds_info['class_labels'][:-1]
+	classes = ds_info['class_labels'][1:-1]
 	nc = len(classes)-1
 
 	num_val = None

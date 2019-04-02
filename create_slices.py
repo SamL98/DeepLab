@@ -1,58 +1,70 @@
 from hdf5storage import loadmat
-from util import *
+import util
+from node import Node
+from slc import Slice
 
 node_idx = 1
 res = .005
 nb = int(1./res)
 
-def create_node(labels, name):
+def create_node(labels, name, prev_slc_labels):
 	global node_idx, nb
 
-	terminals = []
+	children = []
 	for label in labels:
-		terminals.append(classes.index(label))
+		children.append(prev_slc_labels.index(label))
 
-	clust = Node(name, node_idx, terminals)
+	node = Node(name, node_idx, sorted(children))
 	node_idx += 1
-	return clust
+	return node
 
-def create_single_node(label):
-	return create_node([label], label)
-
+def create_single_node(label, prev_slc_labels):
+	return create_node([label], label, prev_slc_labels)
 
 if __name__ == '__main__':
-	slices = [[create_single_node(classes[i]) for i in range(1, len(classes))]]
+	classes = util.classes[1:]
+	slc = Slice([create_single_node(classes[i], classes) for i in range(len(classes))], util.nc)
+	prev_labels = [node.name for node in slc]
+	slices = [slc]
 
 	slc = []
-	slc.append(create_node(['cow', 'sheep', 'horse'], 'ungulate'))
-	slc.append(create_single_node('dog'))
-	slc.append(create_single_node('cat'))
-	slc.append(create_single_node('bird'))
-	slc.append(create_single_node('person'))
-	slc.append(create_node(['car', 'bus', 'motorbike', 'bicycle', 'train'], 'ground transportation'))
-	slc.append(create_single_node('boat'))
-	slc.append(create_single_node('aeroplane'))
-	slc.append(create_single_node('bottle'))
-	slc.append(create_single_node('tvmonitor'))
-	slc.append(create_single_node('potted plant'))
-	slc.append(create_node(['chair', 'sofa'], 'seating'))
-	slc.append(create_single_node('diningtable'))
-	slices.append(slc[:])
+	slc.append(create_node(['cow', 'sheep', 'horse'], 'ungulate', prev_labels))
+	slc.append(create_single_node('dog', prev_labels))
+	slc.append(create_single_node('cat', prev_labels))
+	slc.append(create_single_node('bird', prev_labels))
+	slc.append(create_single_node('person', prev_labels))
+	slc.append(create_node(['car', 'bus', 'motorbike', 'bicycle', 'train'], 'ground transportation', prev_labels))
+	slc.append(create_single_node('boat', prev_labels))
+	slc.append(create_single_node('aeroplane', prev_labels))
+	slc.append(create_single_node('bottle', prev_labels))
+	slc.append(create_single_node('tvmonitor', prev_labels))
+	slc.append(create_single_node('potted plant', prev_labels))
+	slc.append(create_node(['chair', 'sofa'], 'seating', prev_labels))
+	slc.append(create_single_node('diningtable', prev_labels))
+	slc = Slice(slc, len(prev_labels))
+
+	prev_labels = [node.name for node in slc]
+	slices.append(slc)
 
 	slc = []
-	slc.append(create_node(['cow', 'sheep', 'horse', 'dog', 'cat'], 'land animal'))
-	slc.append(create_single_node('bird'))
-	slc.append(create_single_node('person'))
-	slc.append(create_node(['car', 'bus', 'motorbike', 'bicycle', 'train', 'boat', 'aeroplane'], 'vehicle'))
-	slc.append(create_single_node('bottle'))
-	slc.append(create_single_node('tvmonitor'))
-	slc.append(create_single_node('potted plant'))
-	slc.append(create_node(['chair', 'sofa', 'diningtable'], 'furniture'))
-	slices.append(slc[:])
+	slc.append(create_node(['ungulate', 'dog', 'cat'], 'land animal', prev_labels))
+	slc.append(create_single_node('bird', prev_labels))
+	slc.append(create_single_node('person', prev_labels))
+	slc.append(create_node(['ground transportation', 'boat', 'aeroplane'], 'vehicle', prev_labels))
+	slc.append(create_single_node('bottle', prev_labels))
+	slc.append(create_single_node('tvmonitor', prev_labels))
+	slc.append(create_single_node('potted plant', prev_labels))
+	slc.append(create_node(['seating', 'diningtable'], 'furniture', prev_labels))
+	slc = Slice(slc, len(prev_labels))
+
+	prev_labels = [node.name for node in slc]
+	slices.append(slc)
 
 	slc = []
-	slc.append(create_node(['cow', 'sheep', 'horse', 'dog', 'cat', 'bird', 'person'], 'being'))
-	slc.append(create_node(['car', 'bus', 'motorbike', 'bicycle', 'train', 'boat', 'aeroplane', 'bottle', 'tvmonitor', 'potted plant', 'chair', 'sofa', 'diningtable'], 'object'))
-	slices.append(slc[:])
+	slc.append(create_node(['land animal', 'bird', 'person'], 'being', prev_labels))
+	slc.append(create_node(['vehicle', 'bottle', 'tvmonitor', 'potted plant', 'furniture'], 'object', prev_labels))
+	slc = Slice(slc, len(prev_labels))
 
-	save_slices('slices.pkl', slices)
+	slices.append(slc)
+
+	util.save_slices('slices.pkl', slices)

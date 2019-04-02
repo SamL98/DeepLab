@@ -72,65 +72,31 @@ def serialize_lgt_gt_pair(logits, gt, imset, chunkno):
 	files[LGT_F][chnk].write(logits[...,1:].tobytes())
 	files[GT_F][chnk].write(gt.tobytes())
 
-def open_files_for_reading(imset, chunkno):
-	chnk = str(chunkno)
-
+def open_files_for_reading(imset, chnk):
 	for fname, fs in files.items():
-		if fs is None or not chnk in fs: 
-			files[fname] = {
-				chnk: open(join(data_dir, f'{imset}_{fname}-{chnk}.txt'), 'rb')
-			}
-	return chnk
+		chnk_fname = join(data_dir, f'{imset}_{fname}-{chnk}.txt')
+		if fs is None:
+			files[fname] = { chnk: open(chnk_fname, 'rb') }
+		elif not chnk in fs:
+			files[fname][chnk] = open(chnk_fname, 'rb')
 
-def read_logits_and_gt(num_pix, chnk):
+def read_logits_and_gt(num_pix, chnk, lgts_out, gt_out):
 	num_lgt_bytes = np.dtype(DTYPES[LOGITS]).itemsize * num_pix * dsutil.nc
 	num_gt_bytes = np.dtype(DTYPES[GT]).itemsize * num_pix
 
-	lgts = np.fromstring(files[LGT_F][chnk].read(num_lgt_bytes), dtype=DTYPES[LOGITS])	
 	gts = np.fromstring(files[GT_F][chnk].read(num_gt_bytes), dtype=DTYPES[GT])
-
-	return len(gts) < num_pix, lgts, gts
-
-def unserialize_examples_for_calib(imset, n_pix, chunkno):
-	chnk = open_files_for_reading(imset, chunkno)
-	return read_logits_and_gt(n_pix, chnk)
-
-def unserialize_examples_for_inf(imset, n_ex, chunkno):
-	chnk = open_files_for_reading(imset, chunkno)
-
-	hws = np.fromstring(files[SHAPE_F][chnk].read(2 * n_ex * INT_SIZE), dtype=DTYPES[SHAPE])
-
+	
 	done = False
-	if len(hws) != 2*n_ex:
+	if len(gts) < num_pix:
 		done = True
+		num_pix = len(gts)
 
-	np.seterr(all='raise')
-	try:
-		num_fg_bytes = reduce(lambda x,y: x*y, hws)	
-		fg_masks = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])
-		num_fg_pix = fg_masks.sum()
-	except FloatingPointError:
-		fg_masks = np.zeros((0), dtype=DTYPES[FG])
-		num_fg_pix = 0
+	gt_out[:num_pix] = gts
+	lgts_out[:num_pix] = np.fromstring(files[LGT_F][chnk].read(num_lgt_bytes), dtype=DTYPES[LOGITS]).reshape(-1, dsutil.nc)	
 
-		num_fg_bytes = 0
-		for i in range(0, len(hws), 2):
-			try:
-				num_fg_bytes += hws[i]*hws[i+1]
-			except FloatingPointError:
-				fg_masks = np.append(fg_masks, np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
-				num_fg_pix += fg_masks.sum()
-				num_fg_bytes = 0
+	return done, num_pix
 
-		if num_fg_bytes > 0:
-			fg_masks = np.append(fg_masks, np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG]))
-			num_fg_pix += fg_masks.sum()
-
-	_, lgts, gts = read_logits_and_gt(num_fg_pix, chnk)	
-
-	h_col = np.expand_dims(hws[::2], 0)
-	w_col = np.expand_dims(hws[1::2], 0)
-	shapes = np.concatenate((h_col, w_col), 1) 
-	num_pix = (h_col * w_col).ravel()
-
-	return done, shapes, num_pix, fg_masks, lgts, gts
+def unserialize_examples_for_calib(imset, n_pix, chunkno, lgts_out, gt_out):
+	chnk = str(chunkno)
+	open_files_for_reading(imset, chnk)
+	return read_logits_and_gt(n_pix, chnk, lgts_out, gt_out)

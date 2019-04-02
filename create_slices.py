@@ -22,7 +22,9 @@ def create_single_node(label, prev_slc_labels):
 	return create_node([label], label, prev_slc_labels)
 
 if __name__ == '__main__':
-	classes = util.classes[1:]
+	#classes = util.classes[1:]
+	classes = util.classes
+
 	slc = Slice([create_single_node(classes[i], classes) for i in range(len(classes))], util.nc)
 	prev_labels = [node.name for node in slc]
 	slices = [slc]

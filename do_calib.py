@@ -15,26 +15,32 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 	done = False
 
 	while not done:
-		done, _ = util.unserialize_examples_for_calib(args.imset, batch_size, chunkno, lgts, gt) 	
+		done, num_pix = util.unserialize_examples_for_calib(args.imset, batch_size, chunkno, lgts, gt) 	
 		term_preds = np.argmax(lgts, -1)
+		gt -= 1
+
+		if done:
+			lgts = lgts[:num_pix]
+			gt = gt[:num_pix]
+			term_preds = term_preds[:num_pix]
 
 		if not args.sm_by_slice: scores = util.sm_of_logits(lgts)
 		else: scores = lgts
 
 		for slc in slices:
-			scores = slc.remap_scores_and_labels(scores, lgts, gt)
+			scores = slc.remap_scores_and_labels(scores, gt, term_preds)
 
 			if args.sm_by_slice: sm = util.sm_of_logits(scores)
 			else: sm = scores 
 
-			for i in np.unique(slc_term_pred):
-				pred_mask = slc_term_pred == i
-				slc_gt_masked = slc_gt[pred_mask]
-				slc_sm_masked = slc_sm[pred_mask]
+			for i in np.unique(term_preds):
+				pred_mask = term_preds == i
+				gt_masked = gt[pred_mask]
+				sm_masked = sm[pred_mask]
 
-				slc_sm_val = slc_sm_masked[:,i]
+				sm_val = sm_masked[:,i]
 				node = slc[i]
-				node.accum_scores(slc_sm_val, slc_gt_masked == i, args.nb, args.sigma)
+				node.accum_scores(sm_val, gt_masked == i, args.nb, args.sigma)
 
 	return slices
 
@@ -44,7 +50,7 @@ def calibrate_sm_for_chunk_unpack(params):
 def aggregate_proc_confs(proc_slices, slices, args):
 	for i, slc in enumerate(slices):
 		for j, main_node in enumerate(slc):
-			main_node.__init__(main_node.name, main_node.node_idx, main_node.terminals, data_dir=args.data_dir, is_main=True)
+			main_node.__init__(main_node.name, main_node.node_idx, main_node.children, data_dir=args.data_dir, is_main=True)
 			main_node.reset(args.nb)
 
 			for proc_slice in proc_slices:

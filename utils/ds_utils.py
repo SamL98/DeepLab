@@ -13,7 +13,8 @@ if isfile(ds_info_fname):
 	ds_info = loadmat(ds_info_fname)
 
 	classes = ds_info['class_labels'][1:-1]
-	nc = len(classes)-1
+	#nc = len(classes)-1
+	nc = len(classes)
 
 	num_val = None
 	if 'n_val' in ds_info:

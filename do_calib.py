@@ -24,11 +24,10 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 			gt = gt[:num_pix]
 			term_preds = term_preds[:num_pix]
 
-		scores = util.sm_of_logits(lgts)
+		sm = util.sm_of_logits(lgts)
 
 		for slc in slices:
-			scores = slc.remap_scores_and_labels(scores, gt, term_preds)
-			sm = scores
+			sm = slc.remap_scores_and_labels(sm, gt, term_preds)
 
 			for i in np.unique(term_preds):
 				pred_mask = term_preds == i
@@ -81,9 +80,6 @@ if __name__ == '__main__':
 		os.mkdir(args.data_dir)
 
 	slices = util.read_slices(args.slice_file)
-
-	n_img = util.num_img_for(args.imset)
-
 	param_batches = [(i, slices.copy(), args) for i in range(args.num_proc)] 
 
 	with util.poolcontext(args.num_proc) as p:

@@ -100,3 +100,25 @@ def unserialize_examples_for_calib(imset, n_pix, chunkno, lgts_out, gt_out):
 	chnk = str(chunkno)
 	open_files_for_reading(imset, chnk)
 	return read_logits_and_gt(n_pix, chnk, lgts_out, gt_out)
+	
+def unserialize_examples_for_inf(imset, n_img, chunkno, lgts_out, gt_out, fg_out, shapes_out):
+	chnk = str(chunkno)
+	open_files_for_reading(imset, chnk)
+	
+	num_shape_bytes = np.dtype(DTYPES[SHAPE]).itemsize * num_img * 2
+	shapes = np.fromstring(files[SHAPE_F][chnk].read(num_shape_bytes), dtype=DTYPES[SHAPE]).reshape(-1, 2)
+	
+	done = False
+	if len(shapes) < n_img:
+		done = True
+		n_img = len(shapes)
+		
+	n_pix = reduce(lambda x,y: x*y, shapes.prod(-1))
+	shapes_out[:n_pix] = shapes
+	
+	num_fg_bytes = np.dtype(DTYPES[FG]).itemsize * n_pix
+	fg_out[:n_pix] = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])
+	
+	n_fg_pix = fg_out[:n_pix].sum()
+	_, _ = read_logits_and_gt(n_fg_pix, chnk, lgts_out, gt_out)
+	return done, n_img, n_pix, n_fg_pix

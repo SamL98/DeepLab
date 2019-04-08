@@ -5,38 +5,47 @@ import sys
 
 import util
 
-def perform_inference_on_chunk(chunkno, chunklen, slices, args):
-	batch_size = 10000 # calculate later	
-	batch_sizes = [batch_size] * (chunklen//batch_size)
-	batch_sizes[-1] -= chunklen % batch_size
+def perform_inference_on_chunk(chunkno, slices, args):
+	batch_size = 100 # calculate later
+	max_dim = 512
 
-	for batch in batch_sizes:
-		shapes, num_pix, fg_masks, lgts, _ = util.unserialize_example(args.imset, batch, chunkno)	
-		lgts = lgts.reshape(-1, util.nc)
-		term_preds = np.argmax(lgts, -1) + 1
+	lgts = np.zeros((batch_size * max_dim**2, util.nc), dtype=util.DTYPES[util.LOGITS])
+	gt = np.zeros((batch_size * max_dim**2), dtype=util.DTYPES[util.GT])
+	fg = np.zeros((batch_size * max_dim**2, dtype=util.DTYPES[util.FG])
+	shapes = np.zeros((batch_size, 2), dtype=util.DTYPES[util.SHAPE])
+	
+	done = False
+	base_img_idx = chunkno * (args.n_img // args.n_proc)
+
+	while not done:
+		done, num_img, num_pix, num_fg_pix = util.unserialize_examples_for_inf(args.imset, batch_size, chunkno. lgts, gt, fg, shapes)	
+		
+		batch_fg = fg[:num_pix]
+		batch_lgts = lgts[:num_fg_pix]
+		batch_term_preds = np.argmax(batch_lgts, -1)
+		batch_gt = gt[:num_fg_pix]
+		batch_gt -= 1
+		
+		if done:
+			shapes = shapes[:num_img]
 
 		per_slice_preds = []
 		per_slice_confs = []
 
-		if not args.sm_by_slice: scores = sm_of_logits(logits, zero_pad=True)
-		else: scores = logits
+		sm = sm_of_logits(batch_lgts)
 
 		for slc in slices:
-			slc_conf_mask = np.zeros_like(term_preds)
-			slc_conf_map = np.zeros((len(lgts)), dtype=logits.dtype)
+			slc_conf_mask = np.zeros_like(batch_term_preds)
+			slc_conf_map = np.zeros((len(batch_lgts)), dtype=batch_lgts.dtype)
 
-			slc_pred_labs = remap_label_arr(term_preds, slc)
-			slc_scores = remap_scores_arr(scores, slc)
+			sm = slc.remap_scores_and_labels(sm, batch_gt, batch_term_preds)
 
-			if args.sm_by_slice: slc_sm = sm_of_logits(slc_scores)
-			else: slc_sm = slc_scores
-
-			for slc_pred_lab in np.unique(slc_pred_labs):
+			for slc_pred_lab in np.unique(batch_term_preds):
 				node = slc[slc_pred_lab]
 
-				pred_mask = slc_pred_labs == slc_pred_lab	
-				slc_sm_masked = slc_sm[pred_mask]
-				confs = node.conf_for_scoers(slc_sm_masked)
+				pred_mask = batch_term_preds == slc_pred_lab	
+				slc_sm_masked = sm[pred_mask]
+				confs = node.conf_for_scores(slc_sm_masked)
 
 				pred_lab = node.node_idx
 				if len(node.terminals) == 1:
@@ -45,25 +54,33 @@ def perform_inference_on_chunk(chunkno, chunklen, slices, args):
 				slc_conf_mask[pred_mask] = pred_lab
 				slc_conf_map[pred_mask] = confs
 
-			slc_conf_mask = set_fg_in_larger_array(slc_fg_conf_mask, fg_mask, orig_shape)
 			per_slice_preds.append(slc_conf_mask)
 			per_slice_confs.append(slc_conf_map)
 
-		for i, (shape, n) in enumerate(zip(shapes, num_pix)):
-			idx = chunkno * (args.n_img // args.num_proc) + i
-			fg_mask = fg_masks[:n]
+		pix_accum = 0
+			
+		for i, shape in enumerate(shapes):
+			h, w = shape
+			num_pix = h*w
+			idx = base_img_idx + i
+			
+			fg_mask = batch_fg[pix_accum:pix_accum+num_pix]
 
 			confident_masks = []
 			confidence_maps = []
 
 			for slice_pred, slice_conf in zip(per_slice_preds, per_slice_confs):
-				conf_mask = util.set_fg_in_larger_array(slice_pred[:n], fg_mask, shape)
-				conf_map = util.set_fg_in_larger_array(slice_conf[:n], fg_mask, shape)
+				conf_mask = util.set_fg_in_larger_array(slice_pred[pix_accum:pix_accum+num_pix], fg_mask, shape)
+				conf_map = util.set_fg_in_larger_array(slice_conf[pix_accum:pix_accum+num_pix], fg_mask, shape)
 		
 				confident_masks.append(conf_mask)
 				confidence_maps.append(conf_map)	
 
 			save_calib_pred(args.imset, idx, args.name, confident_masks, confidence_maps)
+			
+			pix_accum += num_pix
+			
+		base_img_idx += num_img
 	
 def perform_inference_on_chunk_unpack(params):
 	perform_inference_on_chunk(*params)
@@ -74,21 +91,16 @@ if __name__ == '__main__':
 	parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
 	parser.add_argument('--imset', dest='imset', type=str, default='test', help='The image set to build the calibration histograms from. Either val or test')
 	parser.add_argument('--num_proc', dest='num_proc', type=int, default=8, help='The number of processes to spawn to parallelize calibration.')
-	parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
 	parser.add_argument('--name', dest='name', type=str, help='The name of the current method.')
 	parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the inference on a small subset of the dataset.')
 	args = parser.parse_args()
 
 	slices = util.read_slices(args.slice_file, reset=False)
 	args.nb = len(slices[0][0].acc_hist)
+	args.n_img = util.num_img_for(args.imset)
 
-	n_img = util.num_img_for(args.imset)
-	args.n_img = n_img
-
-	img_per_chunk = [n_img//args.num_proc] * args.num_proc
-	img_per_chunk[-1] -= n_img % args.num_proc
-
-	param_batches = [(i, chnk_len, slices.copy(), args) for i, chnk_len in zip(range(args.num_proc), img_per_chunk)] 
+	slices = util.read_slices(args.slice_file)
+	param_batches = [(i, slices.copy(), args) for i in range(args.num_proc)] 
 
 	with poolcontext(args.num_proc) as p:
 		_ = p.map(perform_inference_on_chunk_unpack, param_batches)

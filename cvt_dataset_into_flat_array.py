@@ -11,12 +11,8 @@ if __name__ == '__main__':
 	idxs = range(1, n_img+1)
 	for procno in range(n_proc):
 		proc_idxs = idxs[procno::n_proc]
+	
 		for idx in proc_idxs:
 			logits = util.load_logits(imset, idx).astype(np.float32)
 			gt = util.load_gt(imset, idx)
-			if len(logits) != len(gt):
-				print(idx)
-				print(logits.shape)
-				print(gt.shape)
-				exit()
 			util.serialize_lgt_gt_pair(logits, gt, imset, procno)

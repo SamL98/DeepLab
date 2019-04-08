@@ -3,7 +3,6 @@ import struct as st
 from os.path import join, isdir
 import os
 import atexit
-from functools import reduce
 
 import ds_utils as dsutil
 import mask_utils as maskutil
@@ -12,7 +11,7 @@ data_dir = join(dsutil.ds_path, 'flat_dataset')
 if not isdir(data_dir):
 	os.mkdir(data_dir)
 
-FG = 'gt'
+FG = 'fg'
 GT = 'gt'
 LOGITS = 'logits'
 SHAPE = 'shape'
@@ -105,7 +104,7 @@ def unserialize_examples_for_inf(imset, n_img, chunkno, lgts_out, gt_out, fg_out
 	chnk = str(chunkno)
 	open_files_for_reading(imset, chnk)
 	
-	num_shape_bytes = np.dtype(DTYPES[SHAPE]).itemsize * num_img * 2
+	num_shape_bytes = np.dtype(DTYPES[SHAPE]).itemsize * n_img * 2
 	shapes = np.fromstring(files[SHAPE_F][chnk].read(num_shape_bytes), dtype=DTYPES[SHAPE]).reshape(-1, 2)
 	
 	done = False
@@ -113,8 +112,8 @@ def unserialize_examples_for_inf(imset, n_img, chunkno, lgts_out, gt_out, fg_out
 		done = True
 		n_img = len(shapes)
 		
-	n_pix = reduce(lambda x,y: x*y, shapes.prod(-1))
-	shapes_out[:n_pix] = shapes
+	n_pix = shapes.prod(-1).sum()
+	shapes_out[:n_img] = shapes
 	
 	num_fg_bytes = np.dtype(DTYPES[FG]).itemsize * n_pix
 	fg_out[:n_pix] = np.fromstring(files[FG_F][chnk].read(num_fg_bytes), dtype=DTYPES[FG])

@@ -24,14 +24,11 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 			gt = gt[:num_pix]
 			term_preds = term_preds[:num_pix]
 
-		if not args.sm_by_slice: scores = util.sm_of_logits(lgts)
-		else: scores = lgts
+		scores = util.sm_of_logits(lgts)
 
 		for slc in slices:
 			scores = slc.remap_scores_and_labels(scores, gt, term_preds)
-
-			if args.sm_by_slice: sm = util.sm_of_logits(scores)
-			else: sm = scores 
+			sm = scores
 
 			for i in np.unique(term_preds):
 				pred_mask = term_preds == i
@@ -76,7 +73,6 @@ if __name__ == '__main__':
 	parser.add_argument('--alpha', dest='alpha', type=float, default=0.05, help='The confidence for the wilson interval.')
 	parser.add_argument('--nb', dest='nb', type=int, default=100, help='The number of bins in the calibration histogram.')
 	parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
-	parser.add_argument('--sm_by_slice', dest='sm_by_slice', action='store_true', help='Whether or not to take the softmax of the logits at each slice of the hierarchy. True by default.')
 	parser.add_argument('--data_dir', dest='data_dir', type=str, default='calib_data', help='The data to store confidences in')
 	parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the calibration script. Takes the first 2*num_proc from the imset.')
 	args = parser.parse_args()

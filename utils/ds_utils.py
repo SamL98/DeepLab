@@ -1,7 +1,7 @@
 from os.path import join, isfile
 import os
 
-ds_path = 'D:/datasets/processed/voc2012'
+ds_path = 'E:/LERNER/deeplab/datasets/voc2012'
 
 if 'DS_PATH' in os.environ:
 	ds_path = os.environ['DS_PATH']
@@ -13,7 +13,6 @@ if isfile(ds_info_fname):
 	ds_info = loadmat(ds_info_fname)
 
 	classes = ds_info['class_labels'][1:-1]
-	#nc = len(classes)-1
 	nc = len(classes)
 
 	num_val = None
@@ -30,8 +29,8 @@ def num_img_for(imset):
 		return eval('num_%s' % imset.lower())
 
 	val_size = 724
-	if imset == 'val':
-		return val_size
+	if 'val' in imset:
+		return val_size*12
 	else:
 		return 1449-val_size
 

@@ -1,7 +1,7 @@
 from os.path import join, isfile, isdir
 import os
 
-from skimage.io import imread
+from skimage.io import imread, imsave
 from hdf5storage import loadmat, savemat
 
 import numpy as np
@@ -12,15 +12,20 @@ import viz_utils as vizutil
 
 def load_rgb(imset, idx):
 	ds_path = dsutil.ds_path
-	
 	fname = join(ds_path, 'rgb', imset, imset+'_%06d_rgb.jpg' % idx)
 	if not isfile(fname):
 		return None
 
 	return imread(fname)
+	
+def save_rgb(imset, idx, rgb):
+	ds_path = dsutil.ds_path
+	imsave(join(ds_path, 'rgb', imset, imset+'_%06d_rgb.jpg' % idx), rgb)
 
 def load_gt(imset, idx, reshape=False):
 	ds_path = dsutil.ds_path
+	if idx > dsutil.num_img_for(imset):
+		ds_path = dsutil.ds_aug_path
 
 	fname = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat') % idx
 	if not isfile(fname):
@@ -32,6 +37,10 @@ def load_gt(imset, idx, reshape=False):
 		gt = gt.ravel()
 
 	return gt
+	
+def save_gt(imset, idx, gt):
+	ds_path = dsutil.ds_path
+	savemat(join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat') % idx, {'truth_img': gt})
 
 def load_logits(imset, idx, reshape=False):
 	ds_path = dsutil.ds_path
@@ -47,6 +56,10 @@ def load_logits(imset, idx, reshape=False):
 		lgts = lgts.reshape(-1, nc+1)
 
 	return lgts
+	
+def save_logits(imset, idx, logits):
+	ds_path = dsutil.ds_path
+	savemat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat') % idx, {'logits_img': logits})
 
 def load_logit_gt_pair(imset, idx, reshape=True, masked=True, ret_shape=False, ret_mask=False):
 	logits = load_logits(imset, idx, reshape=reshape)

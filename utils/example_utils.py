@@ -20,7 +20,7 @@ SHAPE = 'shape'
 DTYPES = {
 	FG: np.bool,
 	GT: np.uint8,
-	LOGITS: np.float64,
+	LOGITS: np.float32,
 	SHAPE: np.uint32
 }
 

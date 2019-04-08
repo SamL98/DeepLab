@@ -1,107 +1,94 @@
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-from skimage.transform import resize
 from hdf5storage import loadmat, savemat
 from os.path import join
 
-from util import *
-from convert_to_tree_labels import make_mapping, convert_terminal_img_to_tree_labels as convert_to_tree_labelmap
-
-def resize_func(arr, h, w):
-	arr = resize(arr, (CROP_SIZE, CROP_SIZE), preserve_range=True, order=1, anti_aliasing=False)
-
-	if h < CROP_SIZE or w < CROP_SIZE:
-		arr = arr[:min(h, CROP_SIZE), :min(w, CROP_SIZE)]
-		
-	if h > CROP_SIZE or w > CROP_SIZE:
-		arr = resize(arr, (h, w), preserve_range=Tru, order=1, anti_aliasing=False)
-		
-	return arr
+import util
+import augment as aug
 	
 import sys
-imset = sys.argv[1].lower().capitalize()
+imset = sys.argv[1].lower()
 
 GRAPH_PATH = 'E:/lerner/deeplab/model_trained/deeplabv3_pascal_train_aug/frozen_inference_graph.pb' 
-DS_PATH = 'D:/datasets/processed/voc2012' 
-RGB_PATH = join(DS_PATH, 'rgb', imset)
-OUTPUT_PATH = join(DS_PATH, 'Deeplab_Prediction', imset)
-
-INPT_FMT = imset.lower()+'_%06d_rgb.jpg' 
-PRED_MAT_NAME = 'pred_img'
-LGT_FMT = imset.lower()+'_%06d_logits.mat'
-LGT_MAT_NAME = 'logits_img'
-
 OUTPUT_TENSOR_NAME = 'ResizeBilinear_2:0' 
 INPUT_TENSOR_NAME = 'ImageTensor:0'
 CROP_SIZE = 513
 PIX_MEAN = 128
 
-tf.reset_default_graph()
+def restore_graph():
+	tf.reset_default_graph()
 
-with tf.gfile.GFile(GRAPH_PATH, 'rb') as f: 
-	graph_def = tf.GraphDef.FromString(f.read())
+	with tf.gfile.GFile(GRAPH_PATH, 'rb') as f: 
+		graph_def = tf.GraphDef.FromString(f.read())
 
-with tf.Graph().as_default() as graph:
-	tf.import_graph_def(graph_def, name='') 
+	with tf.Graph().as_default() as graph:
+		tf.import_graph_def(graph_def, name='') 
+
+	return graph
 	
-ds_info = loadmat(join(DS_PATH, 'dataset_info.mat'))
+def get_logits(inpt_im, ckpt_graph):
+	h, w, _ = inpt_im.shape
+	pad_h = max(0, CROP_SIZE-h)
+	pad_w = max(0, CROP_SIZE-w)
 
-num_img = num_img_for(imset.lower())
-	
-orig_labelmap = ds_info['class_labels']
-orig_labelmap[orig_labelmap.index('potted plant')] = 'pottedplant'
-tree_labelmap = loadmat(join(DS_PATH, 'Decision_Tree', 'concept_tree.mat'))['all_node_labels']
-mapping = make_mapping(orig_labelmap, tree_labelmap)
-
-ckpt_graph = graph
-#with tf.Session(graph=graph) as sess: 
-if __name__ == '__main__':
-	for im_idx in range(55, num_img+1):
-		print('Performing inference on image %d' % im_idx)
-		sys.stdout.flush()
-	
-		inpt_im = np.array(Image.open(join(RGB_PATH, INPT_FMT % im_idx)), dtype=np.float64)
-		if inpt_im.shape[2] == 4:
-			inpt_im = inpt_im[:,:,:-1]
-		h, w, _ = inpt_im.shape
-
-		pad_h = max(0, CROP_SIZE-h)
-		pad_w = max(0, CROP_SIZE-w)
-
-		inpt_im = np.pad(
-			inpt_im,
-			[(0, pad_h), (0, pad_w), (0, 0)],
-			'constant',
-			constant_values=PIX_MEAN)
+	inpt_im = np.pad(
+		inpt_im,
+		[(0, pad_h), (0, pad_w), (0, 0)],
+		'constant',
+		constant_values=PIX_MEAN)
 		
-		inpt_im = np.expand_dims(inpt_im, axis=0)
+	inpt_im = np.expand_dims(inpt_im, axis=0)
 
-		with tf.Session(graph=ckpt_graph) as sess:
-			graph = tf.get_default_graph()
-			output_tensor = graph.get_tensor_by_name(OUTPUT_TENSOR_NAME)
+	with tf.Session(graph=ckpt_graph) as sess:
+		graph = tf.get_default_graph()
+		output_tensor = graph.get_tensor_by_name(OUTPUT_TENSOR_NAME)
 		
-			output_tensor = tf.image.resize_images(output_tensor,
-												[CROP_SIZE, CROP_SIZE],
-												method=tf.image.ResizeMethod.BILINEAR,
-												align_corners=True)
-			#output_tensor.set_shape([1, CROP_SIZE, CROP_SIZE, 21])
+		output_tensor = tf.image.resize_images(output_tensor,
+											[CROP_SIZE, CROP_SIZE],
+											method=tf.image.ResizeMethod.BILINEAR,
+											align_corners=True)
 		
-			if h < CROP_SIZE or w < CROP_SIZE:
-				output_tensor = tf.slice(output_tensor,
-									[0, 0, 0, 0],
-									[1, min(h, CROP_SIZE), min(w, CROP_SIZE), 21])
+		if h < CROP_SIZE or w < CROP_SIZE:
+			output_tensor = tf.slice(output_tensor,
+								[0, 0, 0, 0],
+								[1, min(h, CROP_SIZE), min(w, CROP_SIZE), 21])
 									
-			if h > CROP_SIZE or w > CROP_SIZE:
-				output_tensor = tf.image.resize_images(output_tensor,
-												[h, w],
-												method=tf.image.ResizeMethod.BILINEAR,
-												align_corners=True)
+		if h > CROP_SIZE or w > CROP_SIZE:
+			output_tensor = tf.image.resize_images(output_tensor,
+											[h, w],
+											method=tf.image.ResizeMethod.BILINEAR,
+											align_corners=True)
 		
-			logits = sess.run(output_tensor, feed_dict={INPUT_TENSOR_NAME: inpt_im})
+		logits = sess.run(output_tensor, feed_dict={INPUT_TENSOR_NAME: inpt_im})
 		
-		logits = np.squeeze(logits)
-		#softmax = resize_func(softmax, h, w).astype(np.float64)
-		
-		savemat(join(OUTPUT_PATH, LGT_FMT % im_idx),
-				{LGT_MAT_NAME: logits})
+	return np.squeeze(logits)
+
+if __name__ == '__main__':
+	aug_idx = util.num_img_for(imset)//12+1
+	ckpt_graph = restore_graph()
+
+	for im_idx in range(1, util.num_img_for(imset)//12+1):
+		util.stdout_writeln('Performing inference on image %d' % im_idx)
+	
+		rgb = util.load_rgb(imset, im_idx)
+		if rgb.shape[2] == 4:
+			rgb = rgb[...,:-1]
+			
+		gt = util.load_gt(imset, im_idx)
+			
+		for flip_lr in [False, True]:
+			for crop in [False, True]:
+				for bd in [aug.BrightnessDirection.Stay, aug.BrightnessDirection.Up, aug.BrightnessDirection.Down]:
+					if (not flip_lr) and (not crop) and bd == aug.BrightnessDirection.Stay: continue
+					
+					rgb_aug, gt_aug = aug.augment(rgb.copy(), gt.copy(), flip_lr, crop, bd)
+					if rgb_aug is None: continue
+					
+					util.save_rgb(imset, aug_idx, rgb_aug)
+					util.save_gt(imset, aug_idx, gt_aug)
+					
+					logits = get_logits(rgb_aug, ckpt_graph)
+					util.save_logits(imset, aug_idx, logits)
+					
+					aug_idx += 1

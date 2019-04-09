@@ -124,9 +124,6 @@ class Node(object):
 			node_data_keys.INT_RANGES.value: self.int_ranges
 		}
 
-		sys.stdout.write('Saving %s data\n' % self.name)
-		sys.stdout.flush()
-
 		savemat(self.node_data_fname, self.node_data)
 
 	def get_conf_acc_hist(self):

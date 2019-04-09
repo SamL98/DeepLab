@@ -19,9 +19,6 @@ def perform_inference_on_chunk(chunkno, slices, args):
 
 	while not done:
 		done, num_img, num_pix, num_fg_pix = util.unserialize_examples_for_inf(args.imset, batch_size, chunkno, lgts, gt, fg, shapes)	
-		util.stdout_writeln(f'Nimg: {num_img}')
-		util.stdout_writeln(f'Npix: {num_pix}')
-		util.stdout_writeln(f'Nfgpix: {num_fg_pix}')
 
 		batch_fg = fg[:num_pix]
 		batch_lgts = lgts[:num_fg_pix]
@@ -56,10 +53,6 @@ def perform_inference_on_chunk(chunkno, slices, args):
 					node = slices[slice_idx-1][pred_lab]
 					slice_idx -= 1
 
-				#util.stdout_writeln('sdflkjsdf')
-				#util.stdout_writeln(pred_mask.shape.__repr__())
-				#util.stdout_writeln(confs.shape.__repr__())
-
 				slc_conf_mask[pred_mask] = pred_lab
 				slc_conf_map[pred_mask] = confs
 
@@ -67,6 +60,7 @@ def perform_inference_on_chunk(chunkno, slices, args):
 			per_slice_confs.append(slc_conf_map)
 
 		pix_accum = 0
+		fg_pix_accum = 0
 			
 		for i, shape in enumerate(shapes):
 			h, w = shape
@@ -74,25 +68,22 @@ def perform_inference_on_chunk(chunkno, slices, args):
 			idx = base_img_idx + i
 			
 			fg_mask = batch_fg[pix_accum:pix_accum+num_pix]
+			num_fg_pix_in_img = fg_mask.sum()
 
 			confident_masks = []
 			confidence_maps = []
 
 			for slice_pred, slice_conf in zip(per_slice_preds, per_slice_confs):
-				util.stdout_writeln('sdflkjsdf')
-				util.stdout_writeln(slice_pred.shape.__repr__())
-				util.stdout_writeln(slice_conf.shape.__repr__())
-				util.stdout_writeln(fg_mask.shape.__repr__())
-				util.stdout_writeln(shape.__repr__())
-				conf_mask = util.set_fg_in_larger_array(slice_pred[pix_accum:pix_accum+num_pix], fg_mask, shape)
-				conf_map = util.set_fg_in_larger_array(slice_conf[pix_accum:pix_accum+num_pix], fg_mask, shape)
+				conf_mask = util.set_fg_in_larger_array(slice_pred[fg_pix_accum:fg_pix_accum+num_fg_pix_in_img], fg_mask, shape)
+				conf_map = util.set_fg_in_larger_array(slice_conf[fg_pix_accum:fg_pix_accum+num_fg_pix_in_img], fg_mask, shape)
 		
 				confident_masks.append(conf_mask)
 				confidence_maps.append(conf_map)	
 
-			save_calib_pred(args.imset, idx, args.name, confident_masks, confidence_maps)
+			util.save_calib_pred(args.imset, idx, args.name, confident_masks, confidence_maps)
 			
 			pix_accum += num_pix
+			fg_pix_accum += num_fg_pix_in_img
 			
 		base_img_idx += num_img
 	

@@ -106,6 +106,9 @@ class Node(object):
 		
 		self.c_hist = np.round(self.c_pdf / np.maximum(1e-7, self.c_pdf.sum()) * self.n_c)
 		self.ic_hist = np.round(self.ic_pdf / np.maximum(1e-7, self.ic_pdf.sum()) * self.n_ic)
+		self.regenerate_acc_hist(nb, alpha)
+
+	def regenerate_acc_hist(self, nb, alpha):
 		self.tot_hist = self.c_hist + self.ic_hist
 		self.tot_hist[self.tot_hist == 0] = 1
 

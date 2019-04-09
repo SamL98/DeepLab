@@ -112,7 +112,7 @@ if __name__ == '__main__':
 	if not args.alpha is None:
 		for slc in slices:
 			for node in slc:
-				node.generate_acc_hist(args.nb, args.alpha)
+				node.regenerate_acc_hist(args.nb, args.alpha)
 
 	slices = util.read_slices(args.slice_file)
 	param_batches = [(i, slices.copy(), args) for i in range(args.num_proc)] 

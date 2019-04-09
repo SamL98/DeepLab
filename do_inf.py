@@ -1,6 +1,6 @@
 import numpy as np
 from hdf5storage import loadmat, savemat
-from os.path import join
+from os.path import join 
 import sys
 
 import util
@@ -80,7 +80,7 @@ def perform_inference_on_chunk(chunkno, slices, args):
 				confident_masks.append(conf_mask)
 				confidence_maps.append(conf_map)	
 
-			util.save_calib_pred(args.imset, idx, args.name, confident_masks, confidence_maps)
+			util.save_calib_pred(args.imset, idx, args.output_name, confident_masks, confidence_maps)
 			
 			pix_accum += num_pix
 			fg_pix_accum += num_fg_pix_in_img
@@ -97,9 +97,13 @@ if __name__ == '__main__':
 	parser.add_argument('--imset', dest='imset', type=str, default='test', help='The image set to build the calibration histograms from. Either val or test')
 	parser.add_argument('--num_proc', dest='num_proc', type=int, default=8, help='The number of processes to spawn to parallelize calibration.')
 	parser.add_argument('--name', dest='name', type=str, help='The name of the current method.')
+	parser.add_argument('--output_name', dest='output_name', type=str, default=None, help='The name of the output method.')
 	parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the inference on a small subset of the dataset.')
 	parser.add_argument('--alpha', dest='alpha', type=float, default=None, help='The Wilson score alpha.')
 	args = parser.parse_args()
+
+	if args.output_name is None:
+		args.output_name = args.name
 
 	slices = util.read_slices(args.slice_file)
 	args.nb = len(slices[0][0].acc_hist)
@@ -108,7 +112,7 @@ if __name__ == '__main__':
 	if not args.alpha is None:
 		for slc in slices:
 			for node in slc:
-				node.generate_acc_hist(nb, args.alpha)
+				node.generate_acc_hist(args.nb, args.alpha)
 
 	slices = util.read_slices(args.slice_file)
 	param_batches = [(i, slices.copy(), args) for i in range(args.num_proc)] 

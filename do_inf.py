@@ -15,7 +15,7 @@ def perform_inference_on_chunk(chunkno, slices, args):
 	shapes = np.zeros((batch_size, 2), dtype=util.DTYPES[util.SHAPE])
 	
 	done = False
-	base_img_idx = chunkno * (args.n_img // args.num_proc)
+	base_img_idx = chunkno+1
 
 	while not done:
 		done, num_img, num_pix, num_fg_pix = util.unserialize_examples_for_inf(args.imset, batch_size, chunkno, lgts, gt, fg, shapes)	
@@ -65,7 +65,7 @@ def perform_inference_on_chunk(chunkno, slices, args):
 		for i, shape in enumerate(shapes):
 			h, w = shape
 			num_pix = h*w
-			idx = base_img_idx + i
+			idx = base_img_idx + args.num_proc * i
 			
 			fg_mask = batch_fg[pix_accum:pix_accum+num_pix]
 			num_fg_pix_in_img = fg_mask.sum()
@@ -85,7 +85,7 @@ def perform_inference_on_chunk(chunkno, slices, args):
 			pix_accum += num_pix
 			fg_pix_accum += num_fg_pix_in_img
 			
-		base_img_idx += num_img
+		base_img_idx += num_img * args.num_proc
 	
 def perform_inference_on_chunk_unpack(params):
 	perform_inference_on_chunk(*params)

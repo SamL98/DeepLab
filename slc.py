@@ -1,4 +1,6 @@
 import numpy as np
+import os
+import util
 
 class Slice(object):
 	def __init__(self, nodes, prev_slc_len):
@@ -14,6 +16,8 @@ class Slice(object):
 		self.label_lut = np.array(lut, dtype=np.uint8)
 
 	def remap_scores_and_labels(self, scores, gts, term_preds):
+		self.add_attr_if_not_exists('pid', os.getpid())
+
 		gts[:] = self.label_lut[gts]
 		term_preds[:] = self.label_lut[term_preds]
 
@@ -57,7 +61,7 @@ class Slice(object):
 
 		acc_hist = self.c_hist.astype(np.float64) / np.maximum(1e-7, self.tot_hist.astype(np.float64))
 		acc_hist = np.minimum(1, acc_hist)
-		acc_hist, int_ranges = conf_ints(acc_hist, self.tot_hist, alpha)
+		acc_hist, int_ranges = util.conf_ints(acc_hist, self.tot_hist, alpha)
 
 		self.acc_hist = acc_hist
 		self.int_ranges = int_ranges
@@ -67,10 +71,6 @@ class Slice(object):
 		return self.acc_hist
 			
 	def conf_for_scores(self, scores, lb=True):
-		if not hasattr(self, 'node_data'):
-			assert isfile(join(self.node_data_fname))
-			self.load_node_data()
-
 		acc_hist = self.get_acc_hist(lb)
 		return np.interp(scores, np.linspace(0, 1, num=len(acc_hist)), acc_hist)
 

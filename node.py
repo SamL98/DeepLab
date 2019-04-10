@@ -4,6 +4,7 @@ import numpy as np
 from hdf5storage import loadmat, savemat
 from enum import Enum
 import sys
+import util
 
 class node_data_keys(Enum):
 	C_HIST = 'c_hist'

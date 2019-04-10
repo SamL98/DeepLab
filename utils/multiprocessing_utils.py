@@ -1,6 +1,9 @@
 import multiprocessing as mp
 from contextlib import contextmanager
 
+import os
+import signal
+
 from os.path import isfile 
 import numpy as np
 
@@ -32,3 +35,7 @@ def get_param_batches(slices, args):
 		param_batches.append((idx_batch, slices.copy(), args))
 
 	return param_batches
+
+def kill_children(proc_slices):
+	for proc_slc in proc_slices:
+		os.kill(proc_slc.pid, signal.SIGTERM)

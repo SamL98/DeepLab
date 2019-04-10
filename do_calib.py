@@ -5,6 +5,7 @@ import os
 import shutil
 
 import util
+import atexit
 
 def calibrate_sm_for_chunk(chunkno, slices, args):
 	batch_size = 500000 # calculate later	
@@ -84,6 +85,9 @@ if __name__ == '__main__':
 
 	slices = util.read_slices(args.slice_file)
 	param_batches = [(i, slices.copy(), args) for i in range(args.num_proc)] 
+
+	proc_slices = [param_batch[1] for param_batch in param_batches]
+	atexit.register(util.kill_children, proc_slices)
 
 	with util.poolcontext(args.num_proc) as p:
 		proc_slices = p.map(calibrate_sm_for_chunk_unpack, param_batches)

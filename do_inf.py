@@ -2,6 +2,7 @@ import numpy as np
 from hdf5storage import loadmat, savemat
 from os.path import join 
 import sys
+import atexit
 
 import util
 
@@ -39,7 +40,7 @@ def perform_inference_on_chunk(chunkno, slices, args):
 			slc_conf_map = np.zeros((len(batch_lgts)), dtype=batch_lgts.dtype)
 
 			sm = slc.remap_scores_and_labels(sm, batch_gt, batch_term_preds)
-			confs = slc.conf_for_scores(sm[:, batch_term_preds])
+			confs = slc.conf_for_scores(sm[:, batch_term_preds], args.lb)
 
 			for slc_pred_lab in np.unique(batch_term_preds):
 				node = slc[slc_pred_lab]
@@ -99,7 +100,7 @@ if __name__ == '__main__':
 	parser.add_argument('--name', dest='name', type=str, help='The name of the current method.')
 	parser.add_argument('--output_name', dest='output_name', type=str, default=None, help='The name of the output method.')
 	parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the inference on a small subset of the dataset.')
-	parser.add_argument('--alpha', dest='alpha', type=float, default=None, help='The Wilson score alpha.')
+	parser.add_argument('--lb', dest='lb', action='store_true', help='Whether or not to take the lower bound of the confidence interval.')
 	args = parser.parse_args()
 
 	if args.output_name is None:
@@ -109,13 +110,11 @@ if __name__ == '__main__':
 	args.nb = len(slices[0][0].acc_hist)
 	args.n_img = util.num_img_for(args.imset)
 
-	if not args.alpha is None:
-		for slc in slices:
-			for node in slc:
-				node.regenerate_acc_hist(args.nb, args.alpha)
-
 	slices = util.read_slices(args.slice_file)
 	param_batches = [(i, slices.copy(), args) for i in range(args.num_proc)] 
+
+	proc_slices = [param_batch[1] for param_batch in param_batches]
+	atexit.register(util.kill_children, proc_slices)
 
 	with util.poolcontext(args.num_proc) as p:
 		_ = p.map(perform_inference_on_chunk_unpack, param_batches)

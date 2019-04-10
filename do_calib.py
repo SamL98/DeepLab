@@ -45,19 +45,21 @@ def calibrate_sm_for_chunk_unpack(params):
 
 def aggregate_proc_confs(proc_slices, slices, args):
 	for i, slc in enumerate(slices):
-		for j, main_node in enumerate(slc):
-			main_node.__init__(main_node.name, main_node.node_idx, main_node.children, data_dir=args.data_dir, is_main=True)
-			main_node.reset(args.nb)
+		slc.reset(args.nb)
 
-			for proc_slice in proc_slices:
-				proc_node = proc_slice[i][j]
+		slc_c_count, slc_ic_count = None, None
+		if args.weight_classes:
+			slc_c_count = sum([node.n_c for node in proc_slices[i]])
+			slc_ic_count = sum([node.n_ic for node in proc_slices[i]])
 
-				if not hasattr(proc_node, 'n_c'):
-					continue
+		for proc_node in proc_slices[i]:
+			if not hasattr(proc_node, 'n_c') or not hasattr(proc_node, 'n_ic'):
+				continue
 
-				main_node.accum_node(proc_node)
+			proc_node.generate_counts()
+			slc.accum_node(proc_node, slc_c_count, slc_ic_count)
 
-			main_node.generate_acc_hist(args.nb, args.alpha)
+		slc.generate_acc_hist(args.alpha)
 
 	return slices
 
@@ -73,6 +75,7 @@ if __name__ == '__main__':
 	parser.add_argument('--nb', dest='nb', type=int, default=100, help='The number of bins in the calibration histogram.')
 	parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 	parser.add_argument('--data_dir', dest='data_dir', type=str, default='calib_data', help='The data to store confidences in')
+	parser.add_argument('--weight_classes', dest='weight_classes', action='store_true', help='Whether or not to weight the node histograms by their respective counts.')
 	parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the calibration script. Takes the first 2*num_proc from the imset.')
 	args = parser.parse_args()
 	

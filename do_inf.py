@@ -39,22 +39,22 @@ def perform_inference_on_chunk(chunkno, slices, args):
 			slc_conf_map = np.zeros((len(batch_lgts)), dtype=batch_lgts.dtype)
 
 			sm = slc.remap_scores_and_labels(sm, batch_gt, batch_term_preds)
+			confs = slc.conf_for_scores(sm[:, batch_term_preds])
 
 			for slc_pred_lab in np.unique(batch_term_preds):
 				node = slc[slc_pred_lab]
-
-				pred_mask = batch_term_preds == slc_pred_lab	
-				confs = node.conf_for_scores(sm[pred_mask,slc_pred_lab])
-
 				pred_lab = node.node_idx
 				slice_idx = j
+
 				while slice_idx > 0 and len(node.children) == 1:
 					pred_lab = node.children[0]
 					node = slices[slice_idx-1][pred_lab]
 					slice_idx -= 1
 
-				slc_conf_mask[pred_mask] = pred_lab
-				slc_conf_map[pred_mask] = confs
+				batch_term_preds[batch_term_preds == slc_pred_lab] = pred_lab
+
+			slc_conf_mask[pred_mask] = pred_lab
+			slc_conf_map[pred_mask] = confs
 
 			per_slice_preds.append(slc_conf_mask)
 			per_slice_confs.append(slc_conf_map)

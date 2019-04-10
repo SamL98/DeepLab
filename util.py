@@ -1,8 +1,6 @@
 import sys
 sys.path.insert(0, 'utils')
 
-from node import Node
-
 from utils.ds_utils import *
 from utils.loading_utils import *
 from utils.mask_utils import *
@@ -12,6 +10,7 @@ from utils.multiprocessing_utils import *
 from utils.color_utils import *
 from utils.viz_utils import *
 from utils.example_utils import *
+from utils.statistics_utils import *
 
 '''
 Expected filesystem:

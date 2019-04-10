@@ -53,12 +53,13 @@ def aggregate_proc_confs(proc_slices, slices, args):
 			slc_c_count = sum([node.n_c for node in proc_slices[i]])
 			slc_ic_count = sum([node.n_ic for node in proc_slices[i]])
 
-		for proc_node in proc_slices[i]:
-			if not hasattr(proc_node, 'n_c') or not hasattr(proc_node, 'n_ic'):
-				continue
+		for proc_slc in proc_slices:
+			for proc_node in proc_slc[i]:
+				if not hasattr(proc_node, 'n_c') or not hasattr(proc_node, 'n_ic'):
+					continue
 
-			proc_node.generate_counts()
-			slc.accum_node(proc_node, slc_c_count, slc_ic_count)
+				proc_node.generate_counts()
+				slc.accum_node(proc_node, slc_c_count, slc_ic_count)
 
 		slc.generate_acc_hist(args.alpha)
 

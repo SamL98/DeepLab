@@ -37,5 +37,8 @@ def get_param_batches(slices, args):
 	return param_batches
 
 def kill_children(proc_slices):
-	for proc_slc in proc_slices:
-		os.kill(proc_slc.pid, signal.SIGTERM)
+	for slices in proc_slices:
+		for proc_slc in slices:
+			if not hasattr(proc_slc, 'pid'):
+				continue
+			os.kill(proc_slc.pid, signal.SIGTERM)

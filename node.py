@@ -7,12 +7,11 @@ import sys
 import util
 
 class Node(object):
-	def __init__(self, name, node_idx, children, data_dir='calib_data'):
+	def __init__(self, name, node_idx, children):
 		self.uid = '%d-%s' % (node_idx, name)
 		self.name = name
 		self.node_idx = node_idx
 		self.children = children
-		self.data_dir = data_dir
 
 	def add_attr_if_not_exists(self, attr_name, attr_val):
 		if not hasattr(self, attr_name):
@@ -45,7 +44,9 @@ class Node(object):
 	def generate_counts(self):
 		attrs = ['c_pdf', 'ic_pdf', 'n_c', 'n_ic']
 		for attr in attrs:
-			if not hasattr(self, attr): return
+			if not hasattr(self, attr): 
+				print(f'Node does not have {attr} attribute')
+				return
 		
 		self.c_hist = np.round(self.c_pdf / np.maximum(1e-7, self.c_pdf.sum()) * self.n_c)
 		self.ic_hist = np.round(self.ic_pdf / np.maximum(1e-7, self.ic_pdf.sum()) * self.n_ic)

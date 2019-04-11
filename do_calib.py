@@ -43,24 +43,23 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 def calibrate_sm_for_chunk_unpack(params):
 	return calibrate_sm_for_chunk(*params)
 
-def aggregate_proc_confs(proc_slices, slices, args):
-	for i, slc in enumerate(slices):
-		slc.reset(args.nb)
+def aggregate_proc_confs(slices_per_proc, main_slices, args):
+	for i, main_slice in enumerate(main_slices):
+		main_slice.reset(args.nb)
 
-		slc_c_count, slc_ic_count = None, None
-		if args.weight_classes:
-			slc_c_count = sum([node.n_c for node in proc_slices[i]])
-			slc_ic_count = sum([node.n_ic for node in proc_slices[i]])
+		for j, main_node in enumerate(main_slice):
+			main_node.reset(args.b)
 
-		for pslices in proc_slices:
-			for proc_node in pslices[i]:
-				if not hasattr(proc_node, 'n_c') or not hasattr(proc_node, 'n_ic'):
+			for proc_slices in slices_per_proc:
+				proc_node = proc_slices[i][j]
+				if not (hasattr(proc_node, 'n_c') and hasattr(proc_node, 'n_ic')):
 					continue
+				main_node.accum(node)
 
-				proc_node.generate_counts()
-				slc.accum_node(proc_node, slc_c_count, slc_ic_count)
+			main_node.generate_counts()
+			main_slice.accum_node(main_node)
 
-		slc.generate_acc_hist(args.alpha)
+		main_slice.generate_acc_hist(args.alpha)
 
 	return slices
 
@@ -76,7 +75,6 @@ if __name__ == '__main__':
 	parser.add_argument('--nb', dest='nb', type=int, default=100, help='The number of bins in the calibration histogram.')
 	parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 	parser.add_argument('--data_dir', dest='data_dir', type=str, default='calib_data', help='The data to store confidences in')
-	parser.add_argument('--weight_classes', dest='weight_classes', action='store_true', help='Whether or not to weight the node histograms by their respective counts.')
 	args = parser.parse_args()
 	
 	if not isdir(args.data_dir):

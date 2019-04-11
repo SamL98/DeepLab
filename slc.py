@@ -35,7 +35,7 @@ class Slice(object):
 		if hasattr(self, attr_name):
 			delattr(self, attr_name)
 
-	def accum_node(self, node, slc_c_count=None, slc_ic_count=None):
+	def accum_node(self, node):
 		for attr in ['c_hist', 'ic_hist']:
 			if not hasattr(node, attr):
 				util.stdout_writeln(f'Node does not have {attr} attribute')
@@ -44,16 +44,8 @@ class Slice(object):
 		self.add_attr_if_not_exists('c_hist', np.zeros_like(node.c_hist))	
 		self.add_attr_if_not_exists('ic_hist', np.zeros_like(node.ic_hist))	
 
-		c_weight = 1
-		if not slc_c_count is None and slc_c_count > 0:
-			c_weight = node.c_hist.sum() / float(slc_c_count)
-
-		ic_weight = 1
-		if not slc_ic_count is None and slc_ic_count > 0:
-			ic_weight = node.ic_hist.sum() / float(slc_ic_count)
-
-		self.c_hist += node.c_hist * c_weight
-		self.ic_hist += node.ic_hist * ic_weight
+		self.c_hist += node.c_hist
+		self.ic_hist += node.ic_hist
 
 	def generate_acc_hist(self, alpha):
 		for attr in ['c_hist', 'ic_hist']:

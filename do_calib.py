@@ -2,7 +2,6 @@ import numpy as np
 from hdf5storage import loadmat, savemat
 from os.path import join, isfile, isdir
 import os
-import shutil
 
 import util
 import atexit
@@ -53,8 +52,8 @@ def aggregate_proc_confs(proc_slices, slices, args):
 			slc_c_count = sum([node.n_c for node in proc_slices[i]])
 			slc_ic_count = sum([node.n_ic for node in proc_slices[i]])
 
-		for proc_slc in proc_slices:
-			for proc_node in proc_slc[i]:
+		for pslices in proc_slices:
+			for proc_node in pslices[i]:
 				if not hasattr(proc_node, 'n_c') or not hasattr(proc_node, 'n_ic'):
 					continue
 
@@ -78,7 +77,6 @@ if __name__ == '__main__':
 	parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 	parser.add_argument('--data_dir', dest='data_dir', type=str, default='calib_data', help='The data to store confidences in')
 	parser.add_argument('--weight_classes', dest='weight_classes', action='store_true', help='Whether or not to weight the node histograms by their respective counts.')
-	parser.add_argument('--test', dest='test', action='store_true', help='Whether or not to test the calibration script. Takes the first 2*num_proc from the imset.')
 	args = parser.parse_args()
 	
 	if not isdir(args.data_dir):
@@ -101,6 +99,3 @@ if __name__ == '__main__':
 		output_fname = args.slice_file
 
 	util.save_slices(output_fname, main_slices)
-	
-	if args.test:
-		shutil.rmtree(args.data_dir)

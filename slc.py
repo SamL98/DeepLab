@@ -52,14 +52,17 @@ class Slice(object):
 		if not slc_ic_count is None and slc_ic_count > 0:
 			ic_weight = node.ic_hist.sum() / float(slc_ic_count)
 
-		self.c_hist += node.c_hist * c_weight / float(len(self.nodes))
-		self.ic_hist += node.ic_hist * ic_weight / float(len(self.nodes))
+		self.c_hist += node.c_hist * c_weight
+		self.ic_hist += node.ic_hist * ic_weight
 
 	def generate_acc_hist(self, alpha):
 		for attr in ['c_hist', 'ic_hist']:
 			if not hasattr(self, attr):
 				util.stdout_writeln(f'Slice does not have {attr} attribute')
 				return
+
+		self.c_hist = (self.c_hist/len(self.nodes)).astype(np.uint64)
+		self.ic_hist = (self.ic_hist/len(self.nodes)).astype(np.uint64)
 
 		self.tot_hist = self.c_hist + self.ic_hist
 		self.tot_hist[self.tot_hist == 0] = 1

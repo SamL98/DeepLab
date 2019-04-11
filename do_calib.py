@@ -7,7 +7,7 @@ import util
 import atexit
 
 def calibrate_sm_for_chunk(chunkno, slices, args):
-	batch_size = 500000 # calculate later	
+	batch_size = 750000 # calculate later	
 
 	lgts = np.zeros((batch_size, util.nc), dtype=util.DTYPES[util.LOGITS])
 	gt = np.zeros((batch_size), dtype=util.DTYPES[util.GT])
@@ -48,13 +48,13 @@ def aggregate_proc_confs(slices_per_proc, main_slices, args):
 		main_slice.reset(args.nb)
 
 		for j, main_node in enumerate(main_slice):
-			main_node.reset(args.b)
+			main_node.reset(args.nb)
 
 			for proc_slices in slices_per_proc:
 				proc_node = proc_slices[i][j]
 				if not (hasattr(proc_node, 'n_c') and hasattr(proc_node, 'n_ic')):
 					continue
-				main_node.accum(node)
+				main_node.accum_node(proc_node)
 
 			main_node.generate_counts()
 			main_slice.accum_node(main_node)

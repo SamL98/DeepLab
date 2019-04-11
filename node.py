@@ -45,7 +45,7 @@ class Node(object):
 		attrs = ['c_pdf', 'ic_pdf', 'n_c', 'n_ic']
 		for attr in attrs:
 			if not hasattr(self, attr): 
-				print(f'Node does not have {attr} attribute')
+				util.stdout_writeln(f'Node does not have {attr} attribute')
 				return
 		
 		self.c_hist = np.round(self.c_pdf / np.maximum(1e-7, self.c_pdf.sum()) * self.n_c)

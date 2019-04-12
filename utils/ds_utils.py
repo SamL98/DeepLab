@@ -30,7 +30,7 @@ def num_img_for(imset):
 
 	val_size = 724
 	if 'val' in imset:
-		return val_size*12
+		return val_size#*12
 	else:
 		return 1449-val_size
 

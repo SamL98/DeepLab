@@ -15,7 +15,6 @@ RES_DOWN = 0.8
 def augment(rgb, flip_lr, scale_down, brightness_direction):
 	if flip_lr:
 		rgb = np.fliplr(rgb)
-		gt = np.fliplr(gt)
 		
 	if scale_down:
 		h, w, _ = rgb.shape
@@ -25,11 +24,10 @@ def augment(rgb, flip_lr, scale_down, brightness_direction):
 		rgb = (resize(rgb, (h, w))*255).astype(np.uint8)
 			
 	if brightness_direction != BrightnessDirection.Stay:
-		lo, hi = min_gamma, 0.8
+		gamma = GAMMA_DOWN
 		if brightness_direction == BrightnessDirection.Up:
-			lo, hi = 1.25, max_gamma
+			gamma = GAMMA_UP
 		
-		gamma = np.random.uniform(lo, hi)
 		rgb = ((rgb/255.)**(1/gamma) * 255).astype(np.uint8)
 		
 	return rgb
@@ -53,7 +51,7 @@ def generate_augmentation_volume(rgb):
 				if lr:
 					flip_idxs.append(aug_no)
 
-				new_rgb= augment(rgb.copy(), lr, scale, bd)
+				new_rgb = augment(rgb.copy(), lr, scale, bd)
 				rgb_aug[aug_no,...] = new_rgb
 
 	return rgb_aug, flip_idxs

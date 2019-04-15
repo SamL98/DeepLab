@@ -23,13 +23,13 @@ def save_rgb(imset, idx, rgb):
 	imsave(join(ds_path, 'rgb', imset, imset+'_%06d_rgb.jpg' % idx), rgb)
 
 def _rgb_aug_path(imset, idx):
-	return join(dsutil.ds_path, 'rgb_aug', imset, imset+'%06d_rgb.mat' % idx)
+	return join(dsutil.ds_path, 'rgb_aug', imset, imset+'_%06d_rgb.mat' % idx)
 
 def _gt_path(imset, idx):
-	return join(dsutil.ds_path, 'Truth', imset, imset+'%06d_pixeltruth.mat' % idx)
+	return join(dsutil.ds_path, 'Truth', imset, imset+'_%06d_pixeltruth.mat' % idx)
 
 def _lgt_aug_path(imset, idx):
-	return join(dsutil.ds_path, 'logits_aug', imset, imset+'%06d_logits.mat' % idx)
+	return join(dsutil.ds_path, 'logits_aug', imset, imset+'_%06d_logits.mat' % idx)
 
 def save_rgb_aug(imset, idx, rgb, flip_idxs):
 	savemat(_rgb_aug_path(imset, idx), {'rgb_img': rgb, 'flip_idxs': flip_idxs})
@@ -41,7 +41,7 @@ def load_gt(imset, idx):
 	loadmat(_gt_path(imset, idx))['truth_img']
 
 def save_lgt_aug(imset, idx, lgt):
-	savemat(_lgt_aug_path(imset, idx), {'logits_img': gt)
+	savemat(_lgt_aug_path(imset, idx), {'logits_img': gt})
 
 def load_lgt_aug(imset, idx):
 	loadmat(_lgt_aug_path(imset, idx))['logits_img']

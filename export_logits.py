@@ -28,15 +28,17 @@ def restore_graph():
 	return graph
 	
 def get_logits(inpt_im, ckpt_graph):
-	num_aug, h, w, _ = inpt_im.shape
+	h, w, _ = inpt_im.shape
 	pad_h = max(0, CROP_SIZE-h)
 	pad_w = max(0, CROP_SIZE-w)
 
 	inpt_im = np.pad(
 		inpt_im,
-		[(0, 0), (0, pad_h), (0, pad_w), (0, 0)],
+		[(0, pad_h), (0, pad_w), (0, 0)],
 		'constant',
 		constant_values=PIX_MEAN)
+
+	inpt_im = np.expand_dims(inpt_im, 0)
 		
 	with tf.Session(graph=ckpt_graph) as sess:
 		graph = tf.get_default_graph()
@@ -50,7 +52,7 @@ def get_logits(inpt_im, ckpt_graph):
 		if h < CROP_SIZE or w < CROP_SIZE:
 			output_tensor = tf.slice(output_tensor,
 								[0, 0, 0, 0],
-								[num_aug, min(h, CROP_SIZE), min(w, CROP_SIZE), 21])
+								[1, min(h, CROP_SIZE), min(w, CROP_SIZE), 21])
 									
 		if h > CROP_SIZE or w > CROP_SIZE:
 			output_tensor = tf.image.resize_images(output_tensor,
@@ -60,7 +62,7 @@ def get_logits(inpt_im, ckpt_graph):
 		
 		logits = sess.run(output_tensor, feed_dict={INPUT_TENSOR_NAME: inpt_im})
 		
-	return logits
+	return np.squeeze(logits)
 
 if __name__ == '__main__':
 	ckpt_graph = restore_graph()
@@ -76,10 +78,15 @@ if __name__ == '__main__':
 
 		rgb_aug, flip_idxs = aug.generate_augmentation_volume(rgb)
 		util.save_rgb_aug(imset, im_idx, rgb_aug, flip_idxs)
+
 		
-		logits = get_logits(rgb_aug, ckpt_graph)
+		logits_aug = np.zeros((rgb_aug.shape[0], rgb_aug.shape[1], rgb_aug.shape[2], util.nc+1), dtype=np.float32)
 
-		for flip_idx in flip_idxs:
-			logits[flip_idx,...] = np.fliplr(logits[flip_idx,...])
+		for i in range(len(rgb_aug)):
+			logits = get_logits(rgb_aug[i], ckpt_graph)
+			if i in flip_idxs:
+				logits = np.fliplr(logits)
 
-		util.save_lgt_aug(imset, im_idx, logits)
+			logits_aug[i] = logits.copy()
+
+		util.save_lgt_aug(imset, im_idx, logits_aug)

@@ -77,7 +77,7 @@ if __name__ == '__main__':
 	slices = util.read_slices(args.slice_file)
 	for slc in slices:
 		for node in slc:
-			node.__init__(node.name, node.node_idx, node.children, node.nb, data_dir=args.data_dir)
+			node.__init__(node.name, node.node_idx, node.children, args.nb, data_dir=args.data_dir)
 
 	idxs = list(range(1, util.num_img_for(args.imset)+1))
 	if args.test:

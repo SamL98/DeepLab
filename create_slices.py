@@ -14,7 +14,7 @@ def create_node(labels, name, prev_slc_labels):
 	for label in labels:
 		children.append(prev_slc_labels.index(label))
 
-	node = Node(name, node_idx, sorted(children))
+	node = Node(name, node_idx, sorted(children), 100)
 	node_idx += 1
 	return node
 

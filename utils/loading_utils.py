@@ -22,84 +22,30 @@ def save_rgb(imset, idx, rgb):
 	ds_path = dsutil.ds_path
 	imsave(join(ds_path, 'rgb', imset, imset+'_%06d_rgb.jpg' % idx), rgb)
 
-def load_gt(imset, idx, reshape=False):
-	ds_path = dsutil.ds_path
-	if idx > dsutil.num_img_for(imset):
-		ds_path = dsutil.ds_aug_path
+def _rgb_aug_path(imset, idx):
+	return join(dsutil.ds_path, 'rgb_aug', imset, imset+'%06d_rgb.mat' % idx)
 
-	fname = join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat') % idx
-	if not isfile(fname):
-		return None
+def _gt_path(imset, idx):
+	return join(dsutil.ds_path, 'Truth', imset, imset+'%06d_pixeltruth.mat' % idx)
 
-	gt = loadmat(fname)['truth_img']
+def _lgt_aug_path(imset, idx):
+	return join(dsutil.ds_path, 'logits_aug', imset, imset+'%06d_logits.mat' % idx)
 
-	if reshape:
-		gt = gt.ravel()
+def save_rgb_aug(imset, idx, rgb, flip_idxs):
+	savemat(_rgb_aug_path(imset, idx), {'rgb_img': rgb, 'flip_idxs': flip_idxs})
 
-	return gt
-	
-def save_gt(imset, idx, gt):
-	ds_path = dsutil.ds_path
-	savemat(join(ds_path, 'truth', imset, imset+'_%06d_pixeltruth.mat') % idx, {'truth_img': gt})
+def load_rgb_aug(imset, idx):
+	loadmat(_rgb_aug_path(imset, idx))['rgb_img']
 
-def load_logits(imset, idx, reshape=False):
-	ds_path = dsutil.ds_path
-	nc = dsutil.nc
+def load_gt(imset, idx):
+	loadmat(_gt_path(imset, idx))['truth_img']
 
-	fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat') % idx
-	if not isfile(fname):
-		return None
+def save_lgt_aug(imset, idx, lgt):
+	savemat(_lgt_aug_path(imset, idx), {'logits_img': gt)
 
-	lgts = loadmat(fname)['logits_img']
+def load_lgt_aug(imset, idx):
+	loadmat(_lgt_aug_path(imset, idx))['logits_img']
 
-	if reshape:
-		lgts = lgts.reshape(-1, nc+1)
-
-	return lgts
-	
-def save_logits(imset, idx, logits):
-	ds_path = dsutil.ds_path
-	savemat(join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_logits.mat') % idx, {'logits_img': logits})
-
-def load_logit_gt_pair(imset, idx, reshape=True, masked=True, ret_shape=False, ret_mask=False):
-	logits = load_logits(imset, idx, reshape=reshape)
-	gt = load_gt(imset, idx, reshape=(not ret_shape))
-
-	if ret_shape:
-		shape = gt.shape
-		if reshape: gt = gt.ravel()
-	elif reshape:
-		gt = gt.ravel()
-
-	if masked:
-		fg_mask = maskutil.fg_mask_for(gt)
-		logits = logits[fg_mask]
-		gt = gt[fg_mask]
-
-	gt_info = gt
-
-	if ret_shape:
-		gt_info = (gt, shape)
-
-	if ret_mask and masked:
-		gt_info = gt_info + (fg_mask,)
-
-	return logits, gt_info
-
-def load_logit_pred_gt_triplet(imset, idx, reshape=True, masked=True, ret_shape=False, ret_mask=False):
-	logits, gt_info = load_logit_gt_pair(imset, idx, reshape, masked, ret_shape, ret_mask)
-	pred = np.argmax(logits[...,1:], -1) + 1
-	return logits, pred, gt_info
-	
-def load_dl_pred(imset, idx):
-	ds_path = dsutil.ds_path
-	
-	pred_fname = join(ds_path, 'deeplab_prediction', imset, imset+'_%06d_prediction.mat') % idx
-	if isfile(pred_fname):
-		return loadmat(pred_fname)['pred_img']-1
-	
-	return None
-	
 def load_calib_pred(imset, idx, name, slc=None, conf=None):
 	ds_path = dsutil.ds_path
 	

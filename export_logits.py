@@ -28,18 +28,16 @@ def restore_graph():
 	return graph
 	
 def get_logits(inpt_im, ckpt_graph):
-	h, w, _ = inpt_im.shape
+	num_aug, h, w, _ = inpt_im.shape
 	pad_h = max(0, CROP_SIZE-h)
 	pad_w = max(0, CROP_SIZE-w)
 
 	inpt_im = np.pad(
 		inpt_im,
-		[(0, pad_h), (0, pad_w), (0, 0)],
+		[(0, 0), (0, pad_h), (0, pad_w), (0, 0)],
 		'constant',
 		constant_values=PIX_MEAN)
 		
-	inpt_im = np.expand_dims(inpt_im, axis=0)
-
 	with tf.Session(graph=ckpt_graph) as sess:
 		graph = tf.get_default_graph()
 		output_tensor = graph.get_tensor_by_name(OUTPUT_TENSOR_NAME)
@@ -52,7 +50,7 @@ def get_logits(inpt_im, ckpt_graph):
 		if h < CROP_SIZE or w < CROP_SIZE:
 			output_tensor = tf.slice(output_tensor,
 								[0, 0, 0, 0],
-								[1, min(h, CROP_SIZE), min(w, CROP_SIZE), 21])
+								[num_aug, min(h, CROP_SIZE), min(w, CROP_SIZE), 21])
 									
 		if h > CROP_SIZE or w > CROP_SIZE:
 			output_tensor = tf.image.resize_images(output_tensor,
@@ -62,13 +60,12 @@ def get_logits(inpt_im, ckpt_graph):
 		
 		logits = sess.run(output_tensor, feed_dict={INPUT_TENSOR_NAME: inpt_im})
 		
-	return np.squeeze(logits)
+	return logits
 
 if __name__ == '__main__':
-	aug_idx = util.num_img_for(imset)//12+1
 	ckpt_graph = restore_graph()
 
-	for im_idx in range(1, util.num_img_for(imset)//12+1):
+	for im_idx in range(1, util.num_img_for(imset)+1):
 		util.stdout_writeln('Performing inference on image %d' % im_idx)
 	
 		rgb = util.load_rgb(imset, im_idx)
@@ -76,19 +73,13 @@ if __name__ == '__main__':
 			rgb = rgb[...,:-1]
 			
 		gt = util.load_gt(imset, im_idx)
-			
-		for flip_lr in [False, True]:
-			for crop in [False, True]:
-				for bd in [aug.BrightnessDirection.Stay, aug.BrightnessDirection.Up, aug.BrightnessDirection.Down]:
-					if (not flip_lr) and (not crop) and bd == aug.BrightnessDirection.Stay: continue
-					
-					rgb_aug, gt_aug = aug.augment(rgb.copy(), gt.copy(), flip_lr, crop, bd)
-					if rgb_aug is None: continue
-					
-					util.save_rgb(imset, aug_idx, rgb_aug)
-					util.save_gt(imset, aug_idx, gt_aug)
-					
-					logits = get_logits(rgb_aug, ckpt_graph)
-					util.save_logits(imset, aug_idx, logits)
-					
-					aug_idx += 1
+
+		rgb_aug, flip_idxs = aug.generate_augmentation_volume(rgb)
+		util.save_rgb_aug(imset, im_idx, rgb_aug, flip_idxs)
+		
+		logits = get_logits(rgb_aug, ckpt_graph)
+
+		for flip_idx in flip_idxs:
+			logits[flip_idx,...] = np.fliplr(logits[flip_idx,...])
+
+		util.save_lgt_aug(imset, im_idx, logits)

@@ -17,19 +17,17 @@ def set_fg_in_larger_array(fg, fg_mask, shape):
 
 	return arr
 
-def sm_of_logits(logits, T=1):
-	assert T != 0
-
+def sm_of_logits(logits):
 	logits_max = logits.max(-1)
 	if len(logits.shape) > 1:
-		logits_max = logits_max[:,np.newaxis]
+		logits_max = logits_max[...,np.newaxis]
 	
 	logits -= logits_max
-	exp_logits = np.exp(logits/T)
+	exp_logits = np.exp(logits)
 	
 	exp_logits_sum = exp_logits.sum(-1)
 	if len(logits.shape) > 1:
-		exp_logits_sum = exp_logits_sum[:,np.newaxis]
+		exp_logits_sum = exp_logits_sum[...,np.newaxis]
 		
 	sm = exp_logits / np.maximum(1e-7, exp_logits_sum)
 	return sm

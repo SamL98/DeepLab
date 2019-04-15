@@ -13,15 +13,14 @@ class Slice(object):
 
 		self.label_lut = np.array(lut, dtype=np.uint8)
 
-	def remap_scores_and_labels(self, scores, gts, term_preds):
-		gts[:] = self.label_lut[gts]
-		term_preds[:] = self.label_lut[term_preds]
+	def remap_labels(self, labels):
+		labels[...] = self.label_lut[labels]
 
-		scores_out = np.zeros((len(scores), len(self.nodes)), dtype=scores.dtype)
+	def remap_sm(self, sm):
+		sm_out = np.zeros((sm.shape[0], sm.shape[1], len(self.nodes)), dtype=sm.dtype)
 		for i, node in enumerate(self.nodes):
-			scores_out[:,i] = scores[:,node.children].sum(1)
-
-		return scores_out
+			sm_out[...,i] = scores[...,node.children].sum(-1)
+		return sm_out 
 
 	def __len__(self):
 		return len(self.nodes)

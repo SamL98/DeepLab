@@ -41,7 +41,7 @@ def load_gt(imset, idx):
 	loadmat(_gt_path(imset, idx))['truth_img']
 
 def save_lgt_aug(imset, idx, lgt):
-	savemat(_lgt_aug_path(imset, idx), {'logits_img': gt})
+	savemat(_lgt_aug_path(imset, idx), {'logits_img': lgt})
 
 def load_lgt_aug(imset, idx):
 	loadmat(_lgt_aug_path(imset, idx))['logits_img']

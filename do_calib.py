@@ -29,14 +29,14 @@ def calibrate_sm_for_chunk(chunkno, slices, args):
 		for slc in slices:
 			sm = slc.remap_scores_and_labels(sm, gt, term_preds)
 
-			for i in np.unique(term_preds):
-				pred_mask = term_preds == i
-				gt_masked = gt[pred_mask]
-				sm_masked = sm[pred_mask]
+			for i in np.unique(gt):
+				gt_mask = term_preds == i
+				pred_masked = term_preds[gt_mask]
+				sm_masked = sm[gt_mask]
 
 				sm_val = sm_masked[:,i]
 				node = slc[i]
-				node.accum_scores(sm_val, gt_masked == i, args.nb, args.sigma)
+				node.accum_scores(sm_val)
 
 	return slices
 
@@ -47,17 +47,17 @@ def aggregate_proc_confs(proc_slices, slices, args):
 	for i, slc in enumerate(slices):
 		for j, main_node in enumerate(slc):
 			main_node.__init__(main_node.name, main_node.node_idx, main_node.children, data_dir=args.data_dir, is_main=True)
-			main_node.reset(args.nb)
+			main_node.reset()
 
 			for proc_slice in proc_slices:
 				proc_node = proc_slice[i][j]
 
-				if not hasattr(proc_node, 'n_c'):
+				if not hasattr(proc_node, 'cdf'):
 					continue
 
 				main_node.accum_node(proc_node)
 
-			main_node.generate_acc_hist(args.nb, args.alpha)
+			main_node.generate_ll_hist(args.nb)
 
 	return slices
 
@@ -68,8 +68,6 @@ if __name__ == '__main__':
 	parser.add_argument('--slice_file', dest='slice_file', type=str, default='slices.pkl', help='The pickle file that specifies the hierarchy.')
 	parser.add_argument('--imset', dest='imset', type=str, default='val', help='The image set to build the calibration confograms from. Either val or test')
 	parser.add_argument('--num_proc', dest='num_proc', type=int, default=8, help='The number of processes to spawn to parallelize calibration.')
-	parser.add_argument('--sigma', dest='sigma', type=float, default=0.1, help='The bandwidth for parzen estimation.')
-	parser.add_argument('--alpha', dest='alpha', type=float, default=0.05, help='The confidence for the wilson interval.')
 	parser.add_argument('--nb', dest='nb', type=int, default=100, help='The number of bins in the calibration histogram.')
 	parser.add_argument('--output_file', dest='output_file', type=str, default=None, help='The pickle file to output the calibration hierarchy to. None if slice_file to be overwritten.')
 	parser.add_argument('--data_dir', dest='data_dir', type=str, default='calib_data', help='The data to store confidences in')

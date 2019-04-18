@@ -17,7 +17,7 @@ def calibrate_sm_for_idxs(idxs, slices, args):
 		lgt_vol = lgt_vol[:,fgy,fgx,:].reshape(num_aug, -1, nc)
 		gt = gt[fgmask].ravel()
 
-		sm = util.sm_of_logits(lgts)
+		sm = util.sm_of_logits(lgt_vol)
 
 		for slc in slices:
 			sm = slc.remap_sm(sm)

@@ -35,16 +35,16 @@ def save_rgb_aug(imset, idx, rgb, flip_idxs):
 	savemat(_rgb_aug_path(imset, idx), {'rgb_img': rgb, 'flip_idxs': flip_idxs})
 
 def load_rgb_aug(imset, idx):
-	loadmat(_rgb_aug_path(imset, idx))['rgb_img']
+	return loadmat(_rgb_aug_path(imset, idx))['rgb_img']
 
 def load_gt(imset, idx):
-	loadmat(_gt_path(imset, idx))['truth_img']
+	return loadmat(_gt_path(imset, idx))['truth_img']
 
 def save_lgt_aug(imset, idx, lgt):
 	savemat(_lgt_aug_path(imset, idx), {'logits_img': lgt})
 
 def load_lgt_aug(imset, idx):
-	loadmat(_lgt_aug_path(imset, idx))['logits_img']
+	return loadmat(_lgt_aug_path(imset, idx))['logits_img']
 
 def load_calib_pred(imset, idx, name, slc=None, conf=None):
 	ds_path = dsutil.ds_path

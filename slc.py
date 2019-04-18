@@ -19,7 +19,7 @@ class Slice(object):
 	def remap_sm(self, sm):
 		sm_out = np.zeros((sm.shape[0], sm.shape[1], len(self.nodes)), dtype=sm.dtype)
 		for i, node in enumerate(self.nodes):
-			sm_out[...,i] = scores[...,node.children].sum(-1)
+			sm_out[...,i] = sm[...,node.children].sum(-1)
 		return sm_out 
 
 	def __len__(self):
